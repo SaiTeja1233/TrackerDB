@@ -31,7 +31,11 @@ const Auth = () => {
                 if (isLogin) {
                     await login(cleanEmail, cleanPassword);
                 } else {
-                    await register(cleanEmail, cleanPassword, values.name.trim());
+                    await register(
+                        cleanEmail,
+                        cleanPassword,
+                        values.name.trim(),
+                    );
                 }
             } catch (err) {
                 // If it's an Appwrite error, it will show "Invalid credentials"
@@ -42,6 +46,9 @@ const Auth = () => {
 
     return (
         <div className="auth-wrapper">
+            <div className="logo-section">
+                <h1>TrackerDB</h1>
+            </div>
             <div className="auth-card">
                 <div className="auth-header">
                     <h2>{isLogin ? "Welcome Back" : "Create Account"}</h2>
@@ -52,7 +59,11 @@ const Auth = () => {
                     </p>
                 </div>
 
-                <form onSubmit={formik.handleSubmit} className="auth-form" noValidate>
+                <form
+                    onSubmit={formik.handleSubmit}
+                    className="auth-form"
+                    noValidate
+                >
                     {!isLogin && (
                         <div className="input-group">
                             <label>Full Name</label>
@@ -67,7 +78,9 @@ const Auth = () => {
                                 />
                             </div>
                             {formik.touched.name && formik.errors.name && (
-                                <span className="error-text">{formik.errors.name}</span>
+                                <span className="error-text">
+                                    {formik.errors.name}
+                                </span>
                             )}
                         </div>
                     )}
@@ -89,7 +102,9 @@ const Auth = () => {
                             />
                         </div>
                         {formik.touched.email && formik.errors.email && (
-                            <span className="error-text">{formik.errors.email}</span>
+                            <span className="error-text">
+                                {formik.errors.email}
+                            </span>
                         )}
                     </div>
 
@@ -101,7 +116,11 @@ const Auth = () => {
                                 name="password"
                                 type={showPassword ? "text" : "password"}
                                 placeholder="••••••••"
-                                autoComplete={isLogin ? "current-password" : "new-password"}
+                                autoComplete={
+                                    isLogin
+                                        ? "current-password"
+                                        : "new-password"
+                                }
                                 // CRITICAL FOR MOBILE:
                                 autoCapitalize="none"
                                 autoCorrect="off"
@@ -112,11 +131,17 @@ const Auth = () => {
                                 className="password-toggle"
                                 onClick={() => setShowPassword(!showPassword)}
                             >
-                                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                {showPassword ? (
+                                    <EyeOff size={18} />
+                                ) : (
+                                    <Eye size={18} />
+                                )}
                             </button>
                         </div>
                         {formik.touched.password && formik.errors.password && (
-                            <span className="error-text">{formik.errors.password}</span>
+                            <span className="error-text">
+                                {formik.errors.password}
+                            </span>
                         )}
                     </div>
 
