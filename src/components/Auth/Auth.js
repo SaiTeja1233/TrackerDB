@@ -23,9 +23,18 @@ const Auth = () => {
         }),
         onSubmit: async (values) => {
             try {
-                if (isLogin) await login(values.email, values.password);
-                else await register(values.email, values.password, values.name);
+                // IMPORTANT: .trim() removes accidental spaces from mobile keyboards
+                // .toLowerCase() ensures "Email@me.com" matches "email@me.com"
+                const cleanEmail = values.email.trim().toLowerCase();
+                const cleanPassword = values.password; // Don't trim passwords (spaces can be intentional)
+
+                if (isLogin) {
+                    await login(cleanEmail, cleanPassword);
+                } else {
+                    await register(cleanEmail, cleanPassword, values.name.trim());
+                }
             } catch (err) {
+                // If it's an Appwrite error, it will show "Invalid credentials"
                 alert(err.message);
             }
         },
@@ -43,7 +52,7 @@ const Auth = () => {
                     </p>
                 </div>
 
-                <form onSubmit={formik.handleSubmit} className="auth-form">
+                <form onSubmit={formik.handleSubmit} className="auth-form" noValidate>
                     {!isLogin && (
                         <div className="input-group">
                             <label>Full Name</label>
@@ -53,13 +62,12 @@ const Auth = () => {
                                     name="name"
                                     type="text"
                                     placeholder="John Doe"
+                                    autoComplete="name"
                                     {...formik.getFieldProps("name")}
                                 />
                             </div>
                             {formik.touched.name && formik.errors.name && (
-                                <span className="error-text">
-                                    {formik.errors.name}
-                                </span>
+                                <span className="error-text">{formik.errors.name}</span>
                             )}
                         </div>
                     )}
@@ -72,13 +80,16 @@ const Auth = () => {
                                 name="email"
                                 type="email"
                                 placeholder="name@company.com"
+                                autoComplete="email"
+                                // CRITICAL FOR MOBILE:
+                                autoCapitalize="none"
+                                autoCorrect="off"
+                                spellCheck="false"
                                 {...formik.getFieldProps("email")}
                             />
                         </div>
                         {formik.touched.email && formik.errors.email && (
-                            <span className="error-text">
-                                {formik.errors.email}
-                            </span>
+                            <span className="error-text">{formik.errors.email}</span>
                         )}
                     </div>
 
@@ -90,6 +101,10 @@ const Auth = () => {
                                 name="password"
                                 type={showPassword ? "text" : "password"}
                                 placeholder="••••••••"
+                                autoComplete={isLogin ? "current-password" : "new-password"}
+                                // CRITICAL FOR MOBILE:
+                                autoCapitalize="none"
+                                autoCorrect="off"
                                 {...formik.getFieldProps("password")}
                             />
                             <button
@@ -97,17 +112,11 @@ const Auth = () => {
                                 className="password-toggle"
                                 onClick={() => setShowPassword(!showPassword)}
                             >
-                                {showPassword ? (
-                                    <EyeOff size={18} />
-                                ) : (
-                                    <Eye size={18} />
-                                )}
+                                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                             </button>
                         </div>
                         {formik.touched.password && formik.errors.password && (
-                            <span className="error-text">
-                                {formik.errors.password}
-                            </span>
+                            <span className="error-text">{formik.errors.password}</span>
                         )}
                     </div>
 
