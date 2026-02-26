@@ -14,6 +14,8 @@ import {
     Filter,
     Calendar,
     X,
+    Facebook,
+    MessageSquare,
 } from "lucide-react";
 import "./Dashboard.css";
 
@@ -31,6 +33,9 @@ const Dashboard = () => {
     const [showCommentInput, setShowCommentInput] = useState(false);
     const [activeTab, setActiveTab] = useState("posts");
 
+    // Default Platform set to Reddit
+    const [platform, setPlatform] = useState("reddit");
+
     // Filter States
     const [tempUser, setTempUser] = useState("All Users");
     const [tempDate, setTempDate] = useState("");
@@ -40,43 +45,6 @@ const Dashboard = () => {
     const DB_ID = "699d8e26001498ef3487";
     const POST_COLLECTION = "posts";
     const COMMENT_COLLECTION = "comments";
-
-    const uniqueUsernames = useMemo(() => {
-        const allItems = [...posts, ...comments];
-        const names = allItems.map((item) => item.username);
-        return ["All Users", ...new Set(names)];
-    }, [posts, comments]);
-
-    const filteredPosts = useMemo(() => {
-        return posts.filter((item) => {
-            const matchesUser =
-                appliedUser === "All Users" || item.username === appliedUser;
-            const matchesDate =
-                !appliedDate || item.createdAt.includes(appliedDate);
-            return matchesUser && matchesDate;
-        });
-    }, [posts, appliedUser, appliedDate]);
-
-    const filteredComments = useMemo(() => {
-        return comments.filter((item) => {
-            const matchesUser =
-                appliedUser === "All Users" || item.username === appliedUser;
-            const matchesDate =
-                !appliedDate || item.createdAt.includes(appliedDate);
-            return matchesUser && matchesDate;
-        });
-    }, [comments, appliedUser, appliedDate]);
-
-    const stats = useMemo(() => {
-        const totalPosts = posts.length;
-        const totalComments = comments.length;
-        const allItems = [...posts, ...comments];
-        const engagedCount = allItems.filter(
-            (item) =>
-                item.username === user.name && visitedLinks.includes(item.$id),
-        ).length;
-        return { totalPosts, totalComments, engagedCount };
-    }, [posts, comments, visitedLinks, user.name]);
 
     useEffect(() => {
         const saved = localStorage.getItem("visitedLinks");
@@ -94,6 +62,58 @@ const Dashboard = () => {
             console.error("Fetch Error:", err);
         }
     };
+
+    const uniqueUsernames = useMemo(() => {
+        const allItems = [...posts, ...comments];
+        const names = allItems.map((item) => item.username);
+        return ["All Users", ...new Set(names)];
+    }, [posts, comments]);
+
+    // FILTER LOGIC: Defaulting legacy data (no platform) to "reddit"
+    const filteredPosts = useMemo(() => {
+        return posts
+            .filter((item) => {
+                const matchesUser =
+                    appliedUser === "All Users" ||
+                    item.username === appliedUser;
+                const matchesDate =
+                    !appliedDate || item.createdAt.includes(appliedDate);
+
+                const itemPlatform = item.platform || "reddit";
+                const matchesPlatform = itemPlatform === platform;
+
+                return matchesUser && matchesDate && matchesPlatform;
+            })
+            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    }, [posts, appliedUser, appliedDate, platform]);
+
+    const filteredComments = useMemo(() => {
+        return comments
+            .filter((item) => {
+                const matchesUser =
+                    appliedUser === "All Users" ||
+                    item.username === appliedUser;
+                const matchesDate =
+                    !appliedDate || item.createdAt.includes(appliedDate);
+
+                const itemPlatform = item.platform || "reddit";
+                const matchesPlatform = itemPlatform === platform;
+
+                return matchesUser && matchesDate && matchesPlatform;
+            })
+            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    }, [comments, appliedUser, appliedDate, platform]);
+
+    const stats = useMemo(() => {
+        const totalPosts = posts.length;
+        const totalComments = comments.length;
+        const allItems = [...posts, ...comments];
+        const engagedCount = allItems.filter(
+            (item) =>
+                item.username === user.name && visitedLinks.includes(item.$id),
+        ).length;
+        return { totalPosts, totalComments, engagedCount };
+    }, [posts, comments, visitedLinks, user.name]);
 
     const handleApplyFilters = () => {
         setAppliedUser(tempUser);
@@ -115,15 +135,19 @@ const Dashboard = () => {
         const url = type === "post" ? postUrl : commentUrl;
         const collection =
             type === "post" ? POST_COLLECTION : COMMENT_COLLECTION;
+
         try {
             const now = new Date();
             const dateString = now.toISOString().split("T")[0];
             const fullDate = `${dateString}, ${now.toLocaleTimeString()}`;
+
             await databases.createDocument(DB_ID, collection, ID.unique(), {
                 url: url,
                 username: user.name,
                 createdAt: fullDate,
+                platform: platform,
             });
+
             type === "post" ? setPostUrl("") : setCommentUrl("");
             type === "post"
                 ? setShowPostInput(false)
@@ -174,6 +198,7 @@ const Dashboard = () => {
                 </div>
             </nav>
 
+            {/* Filter Modal */}
             {isFilterModalOpen && (
                 <div
                     className="modal-overlay"
@@ -250,12 +275,12 @@ const Dashboard = () => {
                         Welcome, <span>{user?.name}</span>
                     </h1>
                     <p>
-                        Track and manage your social media engagement
-                        effectively.
+                        Viewing <strong>{platform}</strong> records.
                     </p>
                 </div>
             </header>
 
+            {/* Mobile Tab Slider */}
             <div className="slider-wrapper mobile-only">
                 <div className="radio-group">
                     <div
@@ -287,12 +312,16 @@ const Dashboard = () => {
             </div>
 
             <div className="tracker-grid">
+                {/* Posts Column */}
                 <div
                     className={`tracker-column ${activeTab !== "posts" ? "hide-on-mobile" : ""}`}
                 >
                     <div className="column-header">
                         <h3>
-                            <LinkIcon size={20} color="#4f46e5" /> Posts
+                            <LinkIcon size={20} color="#4f46e5" /> Posts{" "}
+                            <span className="count-badge">
+                                {filteredPosts.length}
+                            </span>
                         </h3>
                         <button
                             className="add-btn-round"
@@ -309,7 +338,7 @@ const Dashboard = () => {
                             >
                                 <input
                                     type="url"
-                                    placeholder="Paste Post URL..."
+                                    placeholder={`Add ${platform} post...`}
                                     value={postUrl}
                                     onChange={(e) => setPostUrl(e.target.value)}
                                     required
@@ -347,12 +376,16 @@ const Dashboard = () => {
                     </div>
                 </div>
 
+                {/* Comments Column */}
                 <div
                     className={`tracker-column ${activeTab !== "comments" ? "hide-on-mobile" : ""}`}
                 >
                     <div className="column-header">
                         <h3>
-                            <Clock size={20} color="#0891b2" /> Comments
+                            <Clock size={20} color="#0891b2" /> Comments{" "}
+                            <span className="count-badge">
+                                {filteredComments.length}
+                            </span>
                         </h3>
                         <button
                             className="add-btn-round alt"
@@ -369,7 +402,7 @@ const Dashboard = () => {
                             >
                                 <input
                                     type="url"
-                                    placeholder="Paste Comment URL..."
+                                    placeholder={`Add ${platform} comment...`}
                                     value={commentUrl}
                                     onChange={(e) =>
                                         setCommentUrl(e.target.value)
@@ -412,6 +445,25 @@ const Dashboard = () => {
                 </div>
             </div>
 
+            {/* STICKY TOGGLE BAR */}
+            <div className="sticky-toggle-container">
+                <div className="platform-toggle">
+                    <button
+                        className={`toggle-btn ${platform === "reddit" ? "active reddit" : ""}`}
+                        onClick={() => setPlatform("reddit")}
+                    >
+                        <MessageSquare size={16} /> Reddit
+                    </button>
+                    <button
+                        className={`toggle-btn ${platform === "facebook" ? "active facebook" : ""}`}
+                        onClick={() => setPlatform("facebook")}
+                    >
+                        <Facebook size={16} /> Facebook
+                    </button>
+                </div>
+            </div>
+
+            {/* Bottom Menu */}
             <div className={`bottom-sheet ${isMenuOpen ? "open" : ""}`}>
                 <button
                     className="arrow-close-btn"
@@ -449,7 +501,7 @@ const Dashboard = () => {
                             <BarChart3 size={18} />
                         </div>
                         <div className="drawer-stat-info">
-                            <span>Your Engagements</span>
+                            <span>Engagements</span>
                             <strong className="engaged-text">
                                 {stats.engagedCount}
                             </strong>
@@ -471,26 +523,32 @@ const Dashboard = () => {
     );
 };
 
-const LinkCard = ({ data, currentUser, isNew, onVisit, onDelete }) => (
-    <div className="tracker-card animated-fade">
-        {isNew && <span className="new-badge">New</span>}
-        <div className="card-top">
-            <p className="card-user">
-                <User size={14} /> {data.username}
-            </p>
-            <span className="card-date">{data.createdAt?.split(",")[0]}</span>
-        </div>
-        <div className="card-actions">
-            <button onClick={onVisit} className="visit-btn">
-                Open Link <ExternalLink size={14} />
-            </button>
-            {data.username === currentUser && (
-                <button onClick={onDelete} className="delete-icon-btn">
-                    <Trash2 size={18} />
+const LinkCard = ({ data, currentUser, isNew, onVisit, onDelete }) => {
+    const [date, time] = data.createdAt ? data.createdAt.split(", ") : ["", ""];
+    return (
+        <div className="tracker-card animated-fade">
+            {isNew && <span className="new-badge">New</span>}
+            <div className="card-top">
+                <p className="card-user">
+                    <User size={14} /> {data.username}
+                </p>
+                <div className="card-timestamp">
+                    <span className="card-date">{date}</span>
+                    <span className="card-time">{time}</span>
+                </div>
+            </div>
+            <div className="card-actions">
+                <button onClick={onVisit} className="visit-btn">
+                    Open Link <ExternalLink size={14} />
                 </button>
-            )}
+                {data.username === currentUser && (
+                    <button onClick={onDelete} className="delete-icon-btn">
+                        <Trash2 size={18} />
+                    </button>
+                )}
+            </div>
         </div>
-    </div>
-);
+    );
+};
 
 export default Dashboard;
