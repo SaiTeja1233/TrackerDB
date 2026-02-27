@@ -306,7 +306,95 @@
     color: #64748b;
     font-size: 0.9rem;
 }
+/* Loading Spinner Styles */
+.loading-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
 
+.loading-spinner {
+    text-align: center;
+    color: white;
+}
+
+.spinner-icon {
+    animation: spin 1s linear infinite;
+    margin-bottom: 1rem;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.spinning {
+    animation: spin 1s linear infinite;
+}
+
+/* Skeleton Loader Styles */
+.tracker-card.skeleton {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: loading 1.5s infinite;
+    pointer-events: none;
+}
+
+@keyframes loading {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+.skeleton-user {
+    width: 120px;
+    height: 20px;
+    background: rgba(255, 255, 255, 0.7);
+    border-radius: 4px;
+}
+
+.skeleton-timestamp {
+    width: 100px;
+    height: 16px;
+    background: rgba(255, 255, 255, 0.7);
+    border-radius: 4px;
+}
+
+.skeleton-button {
+    width: 100px;
+    height: 32px;
+    background: rgba(255, 255, 255, 0.7);
+    border-radius: 6px;
+}
+
+.skeleton-icon {
+    width: 32px;
+    height: 32px;
+    background: rgba(255, 255, 255, 0.7);
+    border-radius: 50%;
+}
+
+/* Disabled state for buttons */
+button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Add to your existing navbar styles */
+.navbar {
+    /* ... existing styles ... */
+    position: relative;
+    z-index: 100;
+}
 .toggle-btn.active.facebook {
     background: #1877F2;
     color: white;

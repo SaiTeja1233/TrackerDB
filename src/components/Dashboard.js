@@ -16,6 +16,7 @@ import {
     X,
     Facebook,
     MessageSquare,
+    Loader2,
 } from "lucide-react";
 import "./Dashboard.css";
 
@@ -28,6 +29,8 @@ const Dashboard = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
     const [visitedLinks, setVisitedLinks] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isInitialLoad, setIsInitialLoad] = useState(true);
 
     const [showPostInput, setShowPostInput] = useState(false);
     const [showCommentInput, setShowCommentInput] = useState(false);
@@ -53,6 +56,7 @@ const Dashboard = () => {
     }, []);
 
     const fetchData = async () => {
+        setIsLoading(true);
         try {
             const p = await databases.listDocuments(DB_ID, POST_COLLECTION);
             const c = await databases.listDocuments(DB_ID, COMMENT_COLLECTION);
@@ -60,6 +64,9 @@ const Dashboard = () => {
             setComments(c.documents);
         } catch (err) {
             console.error("Fetch Error:", err);
+        } finally {
+            setIsLoading(false);
+            setIsInitialLoad(false);
         }
     };
 
@@ -110,10 +117,10 @@ const Dashboard = () => {
         const allItems = [...posts, ...comments];
         const engagedCount = allItems.filter(
             (item) =>
-                item.username === user.name && visitedLinks.includes(item.$id),
+                item.username === user?.name && visitedLinks.includes(item.$id),
         ).length;
         return { totalPosts, totalComments, engagedCount };
-    }, [posts, comments, visitedLinks, user.name]);
+    }, [posts, comments, visitedLinks, user?.name]);
 
     const handleApplyFilters = () => {
         setAppliedUser(tempUser);
@@ -143,7 +150,7 @@ const Dashboard = () => {
 
             await databases.createDocument(DB_ID, collection, ID.unique(), {
                 url: url,
-                username: user.name,
+                username: user?.name,
                 createdAt: fullDate,
                 platform: platform,
             });
@@ -152,9 +159,13 @@ const Dashboard = () => {
             type === "post"
                 ? setShowPostInput(false)
                 : setShowCommentInput(false);
-            fetchData();
+
+            // Show loading state while refreshing data
+            setIsLoading(true);
+            await fetchData();
         } catch (err) {
             alert("Tracking failed: " + err.message);
+            setIsLoading(false);
         }
     };
 
@@ -162,11 +173,47 @@ const Dashboard = () => {
         if (!window.confirm("Delete this link?")) return;
         try {
             await databases.deleteDocument(DB_ID, collection, docId);
-            fetchData();
+            // Show loading state while refreshing data
+            setIsLoading(true);
+            await fetchData();
         } catch (err) {
             alert("Delete failed: " + err.message);
+            setIsLoading(false);
         }
     };
+
+    // Loading Animation Component
+    const LoadingSpinner = () => (
+        <div className="loading-container">
+            <div className="loading-spinner">
+                <Loader2 size={48} className="spinner-icon" />
+                <p>Loading your dashboard...</p>
+            </div>
+        </div>
+    );
+
+    // Skeleton Loader for Cards
+    const SkeletonCard = () => (
+        <div className="tracker-card skeleton">
+            <div className="card-top">
+                <div className="skeleton-user"></div>
+                <div className="skeleton-timestamp"></div>
+            </div>
+            <div className="card-actions">
+                <div className="skeleton-button"></div>
+                <div className="skeleton-icon"></div>
+            </div>
+        </div>
+    );
+
+    // Show full page loader on initial load
+    if (isInitialLoad) {
+        return (
+            <div className="dashboard-container">
+                <LoadingSpinner />
+            </div>
+        );
+    }
 
     return (
         <div className="dashboard-container">
@@ -326,6 +373,7 @@ const Dashboard = () => {
                         <button
                             className="add-btn-round"
                             onClick={() => setShowPostInput(true)}
+                            disabled={isLoading}
                         >
                             <Plus />
                         </button>
@@ -343,13 +391,24 @@ const Dashboard = () => {
                                     onChange={(e) => setPostUrl(e.target.value)}
                                     required
                                     autoFocus
+                                    disabled={isLoading}
                                 />
                                 <div className="form-actions">
-                                    <button type="submit">Track</button>
+                                    <button type="submit" disabled={isLoading}>
+                                        {isLoading ? (
+                                            <Loader2
+                                                size={16}
+                                                className="spinning"
+                                            />
+                                        ) : (
+                                            "Track"
+                                        )}
+                                    </button>
                                     <button
                                         type="button"
                                         className="cancel-btn"
                                         onClick={() => setShowPostInput(false)}
+                                        disabled={isLoading}
                                     >
                                         Cancel
                                     </button>
@@ -358,21 +417,32 @@ const Dashboard = () => {
                         </div>
                     )}
                     <div className="cards-list">
-                        {filteredPosts.map((item) => (
-                            <LinkCard
-                                key={item.$id}
-                                data={item}
-                                currentUser={user.name}
-                                isNew={
-                                    item.username !== user.name &&
-                                    !visitedLinks.includes(item.$id)
-                                }
-                                onVisit={() => handleVisit(item.$id, item.url)}
-                                onDelete={() =>
-                                    handleDelete(item.$id, POST_COLLECTION)
-                                }
-                            />
-                        ))}
+                        {isLoading ? (
+                            // Show skeleton loaders while loading
+                            <>
+                                <SkeletonCard />
+                                <SkeletonCard />
+                                <SkeletonCard />
+                            </>
+                        ) : (
+                            filteredPosts.map((item) => (
+                                <LinkCard
+                                    key={item.$id}
+                                    data={item}
+                                    currentUser={user?.name}
+                                    isNew={
+                                        item.username !== user?.name &&
+                                        !visitedLinks.includes(item.$id)
+                                    }
+                                    onVisit={() =>
+                                        handleVisit(item.$id, item.url)
+                                    }
+                                    onDelete={() =>
+                                        handleDelete(item.$id, POST_COLLECTION)
+                                    }
+                                />
+                            ))
+                        )}
                     </div>
                 </div>
 
@@ -390,6 +460,7 @@ const Dashboard = () => {
                         <button
                             className="add-btn-round alt"
                             onClick={() => setShowCommentInput(true)}
+                            disabled={isLoading}
                         >
                             <Plus />
                         </button>
@@ -409,15 +480,26 @@ const Dashboard = () => {
                                     }
                                     required
                                     autoFocus
+                                    disabled={isLoading}
                                 />
                                 <div className="form-actions">
-                                    <button type="submit">Track</button>
+                                    <button type="submit" disabled={isLoading}>
+                                        {isLoading ? (
+                                            <Loader2
+                                                size={16}
+                                                className="spinning"
+                                            />
+                                        ) : (
+                                            "Track"
+                                        )}
+                                    </button>
                                     <button
                                         type="button"
                                         className="cancel-btn"
                                         onClick={() =>
                                             setShowCommentInput(false)
                                         }
+                                        disabled={isLoading}
                                     >
                                         Cancel
                                     </button>
@@ -426,21 +508,35 @@ const Dashboard = () => {
                         </div>
                     )}
                     <div className="cards-list">
-                        {filteredComments.map((item) => (
-                            <LinkCard
-                                key={item.$id}
-                                data={item}
-                                currentUser={user.name}
-                                isNew={
-                                    item.username !== user.name &&
-                                    !visitedLinks.includes(item.$id)
-                                }
-                                onVisit={() => handleVisit(item.$id, item.url)}
-                                onDelete={() =>
-                                    handleDelete(item.$id, COMMENT_COLLECTION)
-                                }
-                            />
-                        ))}
+                        {isLoading ? (
+                            // Show skeleton loaders while loading
+                            <>
+                                <SkeletonCard />
+                                <SkeletonCard />
+                                <SkeletonCard />
+                            </>
+                        ) : (
+                            filteredComments.map((item) => (
+                                <LinkCard
+                                    key={item.$id}
+                                    data={item}
+                                    currentUser={user?.name}
+                                    isNew={
+                                        item.username !== user?.name &&
+                                        !visitedLinks.includes(item.$id)
+                                    }
+                                    onVisit={() =>
+                                        handleVisit(item.$id, item.url)
+                                    }
+                                    onDelete={() =>
+                                        handleDelete(
+                                            item.$id,
+                                            COMMENT_COLLECTION,
+                                        )
+                                    }
+                                />
+                            ))
+                        )}
                     </div>
                 </div>
             </div>
@@ -451,12 +547,14 @@ const Dashboard = () => {
                     <button
                         className={`toggle-btn ${platform === "reddit" ? "active reddit" : ""}`}
                         onClick={() => setPlatform("reddit")}
+                        disabled={isLoading}
                     >
                         <MessageSquare size={16} /> Reddit
                     </button>
                     <button
                         className={`toggle-btn ${platform === "facebook" ? "active facebook" : ""}`}
                         onClick={() => setPlatform("facebook")}
+                        disabled={isLoading}
                     >
                         <Facebook size={16} /> Facebook
                     </button>
