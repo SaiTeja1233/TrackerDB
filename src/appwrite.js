@@ -1,4 +1,4 @@
-import { Client, Account, Databases, ID } from "appwrite";
+import { Client, Account, Databases, ID, Query } from "appwrite";
 
 export const client = new Client();
 
@@ -7,5 +7,5 @@ client
     .setProject("699d5b16002cbbcac174"); // Your Project ID
 
 export const account = new Account(client);
-export const databases = new Databases(client); // Added for Post/Comment tracking
-export { ID };
+export const databases = new Databases(client);
+export { ID, Query };

@@ -1,22 +1,21 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { databases, ID } from "../appwrite";
+import { databases, ID, Query } from "../appwrite";
 import { useAuth } from "../context/AuthContext";
 import {
-    ExternalLink,
     User,
     Link as LinkIcon,
     Trash2,
     Plus,
     Clock,
-    BarChart3,
-    ChevronUp,
-    ChevronDown,
     Filter,
     Calendar,
     X,
     Facebook,
     MessageSquare,
-    Loader2,
+    RefreshCw,
+    Activity,
+    MessageCircle,
+    ChevronUp,
 } from "lucide-react";
 import "./Dashboard.css";
 
@@ -29,14 +28,15 @@ const Dashboard = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
     const [visitedLinks, setVisitedLinks] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [isInitialLoad, setIsInitialLoad] = useState(true);
+    const [isLoading, setIsLoading] = useState(false);
+    const [lastUpdated, setLastUpdated] = useState(null);
+    const [currentTime, setCurrentTime] = useState(new Date());
+    const [showBackToTop, setShowBackToTop] = useState(false);
 
     const [showPostInput, setShowPostInput] = useState(false);
     const [showCommentInput, setShowCommentInput] = useState(false);
-    const [activeTab, setActiveTab] = useState("posts");
+    const [activeView, setActiveView] = useState("posts");
 
-    // Default Platform set to Reddit
     const [platform, setPlatform] = useState("reddit");
 
     // Filter States
@@ -49,24 +49,124 @@ const Dashboard = () => {
     const POST_COLLECTION = "posts";
     const COMMENT_COLLECTION = "comments";
 
+    // Update current time every second
+    useEffect(() => {
+        const timer = setInterval(() => {
+            setCurrentTime(new Date());
+        }, 1000);
+        return () => clearInterval(timer);
+    }, []);
+
+    // Add scroll listener for back to top button
+    useEffect(() => {
+        const handleScroll = () => {
+            setShowBackToTop(window.scrollY > 400);
+        };
+
+        window.addEventListener("scroll", handleScroll);
+        return () => window.removeEventListener("scroll", handleScroll);
+    }, []);
+
     useEffect(() => {
         const saved = localStorage.getItem("visitedLinks");
         if (saved) setVisitedLinks(JSON.parse(saved));
         fetchData();
     }, []);
 
+    const parseDate = (dateString) => {
+        if (!dateString) return new Date(0);
+        let date = new Date(dateString);
+        if (isNaN(date.getTime())) {
+            // Match format: MM/DD/YYYY, HH:MM:SS AM/PM
+            const match = dateString.match(
+                /(\d{1,2})\/(\d{1,2})\/(\d{4}),?\s*(\d{1,2}):(\d{2}):(\d{2})\s*(AM|PM)?/i,
+            );
+            if (match) {
+                const month = parseInt(match[1]);
+                const day = parseInt(match[2]);
+                const year = parseInt(match[3]);
+                let hours = parseInt(match[4]);
+                const minutes = parseInt(match[5]);
+                const seconds = parseInt(match[6]);
+                const ampm = match[7];
+
+                if (ampm) {
+                    if (ampm.toUpperCase() === "PM" && hours < 12) hours += 12;
+                    if (ampm.toUpperCase() === "AM" && hours === 12) hours = 0;
+                }
+                return new Date(year, month - 1, day, hours, minutes, seconds);
+            }
+
+            // Match format: YYYY-MM-DD, HH:MM:SS AM/PM
+            const match2 = dateString.match(
+                /(\d{4})-(\d{2})-(\d{2}),?\s*(\d{1,2}):(\d{2}):(\d{2})\s*(AM|PM)?/i,
+            );
+            if (match2) {
+                const year = parseInt(match2[1]);
+                const month = parseInt(match2[2]);
+                const day = parseInt(match2[3]);
+                let hours = parseInt(match2[4]);
+                const minutes = parseInt(match2[5]);
+                const seconds = parseInt(match2[6]);
+                const ampm = match2[7];
+
+                if (ampm) {
+                    if (ampm.toUpperCase() === "PM" && hours < 12) hours += 12;
+                    if (ampm.toUpperCase() === "AM" && hours === 12) hours = 0;
+                }
+                return new Date(year, month - 1, day, hours, minutes, seconds);
+            }
+        }
+        return date;
+    };
+
+    const formatDateTime = (date) => {
+        if (!date) return "N/A";
+        return new Date(date).toLocaleString("en-US", {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+        });
+    };
+
+    const formatDateOnly = (date) => {
+        if (!date) return "N/A";
+        return new Date(date).toLocaleString("en-US", {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+        });
+    };
+
+    const getGreeting = () => {
+        const hour = currentTime.getHours();
+        if (hour >= 0 && hour < 12) return "Good Morning";
+        if (hour >= 12 && hour < 17) return "Good Afternoon";
+        if (hour >= 17 && hour < 21) return "Good Evening";
+        return "Good Night";
+    };
+
     const fetchData = async () => {
         setIsLoading(true);
         try {
-            const p = await databases.listDocuments(DB_ID, POST_COLLECTION);
-            const c = await databases.listDocuments(DB_ID, COMMENT_COLLECTION);
+            const [p, c] = await Promise.all([
+                databases.listDocuments(DB_ID, POST_COLLECTION, [
+                    Query.limit(5000),
+                ]),
+                databases.listDocuments(DB_ID, COMMENT_COLLECTION, [
+                    Query.limit(5000),
+                ]),
+            ]);
             setPosts(p.documents);
             setComments(c.documents);
+            setLastUpdated(new Date());
         } catch (err) {
             console.error("Fetch Error:", err);
         } finally {
             setIsLoading(false);
-            setIsInitialLoad(false);
         }
     };
 
@@ -76,22 +176,28 @@ const Dashboard = () => {
         return ["All Users", ...new Set(names)];
     }, [posts, comments]);
 
-    // FILTER LOGIC: Defaulting legacy data (no platform) to "reddit"
     const filteredPosts = useMemo(() => {
         return posts
             .filter((item) => {
                 const matchesUser =
                     appliedUser === "All Users" ||
                     item.username === appliedUser;
-                const matchesDate =
-                    !appliedDate || item.createdAt.includes(appliedDate);
-
+                let matchesDate = true;
+                if (appliedDate) {
+                    const itemDate = parseDate(item.createdAt);
+                    const filterDate = new Date(appliedDate);
+                    matchesDate =
+                        itemDate.toDateString() === filterDate.toDateString();
+                }
                 const itemPlatform = item.platform || "reddit";
                 const matchesPlatform = itemPlatform === platform;
-
                 return matchesUser && matchesDate && matchesPlatform;
             })
-            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+            .sort((a, b) => {
+                const dateA = parseDate(a.createdAt || a.$createdAt);
+                const dateB = parseDate(b.createdAt || b.$createdAt);
+                return dateB - dateA;
+            });
     }, [posts, appliedUser, appliedDate, platform]);
 
     const filteredComments = useMemo(() => {
@@ -100,31 +206,58 @@ const Dashboard = () => {
                 const matchesUser =
                     appliedUser === "All Users" ||
                     item.username === appliedUser;
-                const matchesDate =
-                    !appliedDate || item.createdAt.includes(appliedDate);
-
+                let matchesDate = true;
+                if (appliedDate) {
+                    const itemDate = parseDate(item.createdAt);
+                    const filterDate = new Date(appliedDate);
+                    matchesDate =
+                        itemDate.toDateString() === filterDate.toDateString();
+                }
                 const itemPlatform = item.platform || "reddit";
                 const matchesPlatform = itemPlatform === platform;
-
                 return matchesUser && matchesDate && matchesPlatform;
             })
-            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+            .sort((a, b) => {
+                const dateA = parseDate(a.createdAt || a.$createdAt);
+                const dateB = parseDate(b.createdAt || b.$createdAt);
+                return dateB - dateA;
+            });
     }, [comments, appliedUser, appliedDate, platform]);
+
+    const today = new Date();
+    const todaysPosts = filteredPosts.filter((item) => {
+        const itemDate = parseDate(item.createdAt || item.$createdAt);
+        return itemDate.toDateString() === today.toDateString();
+    });
+
+    const todaysComments = filteredComments.filter((item) => {
+        const itemDate = parseDate(item.createdAt || item.$createdAt);
+        return itemDate.toDateString() === today.toDateString();
+    });
 
     const stats = useMemo(() => {
         const totalPosts = posts.length;
         const totalComments = comments.length;
-        const allItems = [...posts, ...comments];
-        const engagedCount = allItems.filter(
-            (item) =>
-                item.username === user?.name && visitedLinks.includes(item.$id),
-        ).length;
-        return { totalPosts, totalComments, engagedCount };
-    }, [posts, comments, visitedLinks, user?.name]);
+        return {
+            totalPosts,
+            totalComments,
+            todaysPosts: todaysPosts.length,
+            todaysComments: todaysComments.length,
+            totalTodays: todaysPosts.length + todaysComments.length,
+        };
+    }, [posts, comments, todaysPosts, todaysComments]);
 
     const handleApplyFilters = () => {
         setAppliedUser(tempUser);
         setAppliedDate(tempDate);
+        setIsFilterModalOpen(false);
+    };
+
+    const handleResetFilters = () => {
+        setAppliedUser("All Users");
+        setAppliedDate("");
+        setTempUser("All Users");
+        setTempDate("");
         setIsFilterModalOpen(false);
     };
 
@@ -143,29 +276,80 @@ const Dashboard = () => {
         const collection =
             type === "post" ? POST_COLLECTION : COMMENT_COLLECTION;
 
-        try {
-            const now = new Date();
-            const dateString = now.toISOString().split("T")[0];
-            const fullDate = `${dateString}, ${now.toLocaleTimeString()}`;
+        if (!url) {
+            alert("Please enter a URL");
+            return;
+        }
 
-            await databases.createDocument(DB_ID, collection, ID.unique(), {
+        // Validate URL
+        try {
+            new URL(url);
+        } catch {
+            alert("Please enter a valid URL (include http:// or https://)");
+            return;
+        }
+
+        try {
+            // Use the current time from dashboard state (live updating)
+            const now = currentTime;
+
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, "0");
+            const day = String(now.getDate()).padStart(2, "0");
+            const dateString = `${year}-${month}-${day}`;
+
+            let hours = now.getHours();
+            const minutes = String(now.getMinutes()).padStart(2, "0");
+            const seconds = String(now.getSeconds()).padStart(2, "0");
+            const ampm = hours >= 12 ? "PM" : "AM";
+            hours = hours % 12;
+            hours = hours ? hours : 12;
+            const timeString = `${hours}:${minutes}:${seconds} ${ampm}`;
+
+            const fullDate = `${dateString}, ${timeString}`;
+
+            console.log("Saving with date/time:", fullDate); // Debug log
+
+            const documentData = {
                 url: url,
                 username: user?.name,
                 createdAt: fullDate,
                 platform: platform,
-            });
+            };
 
-            type === "post" ? setPostUrl("") : setCommentUrl("");
-            type === "post"
-                ? setShowPostInput(false)
-                : setShowCommentInput(false);
+            await databases.createDocument(
+                DB_ID,
+                collection,
+                ID.unique(),
+                documentData,
+            );
 
-            // Show loading state while refreshing data
-            setIsLoading(true);
+            // Clear form
+            if (type === "post") {
+                setPostUrl("");
+                setShowPostInput(false);
+            } else {
+                setCommentUrl("");
+                setShowCommentInput(false);
+            }
+
+            // Show success message
+            alert(
+                `${type === "post" ? "Post" : "Comment"} added successfully at ${fullDate}`,
+            );
+
+            // Refresh data
             await fetchData();
+
+            // Switch to appropriate view
+            if (type === "post") {
+                setActiveView("posts");
+            } else {
+                setActiveView("comments");
+            }
         } catch (err) {
-            alert("Tracking failed: " + err.message);
-            setIsLoading(false);
+            console.error("Error adding tracker:", err);
+            alert("Failed to add: " + err.message);
         }
     };
 
@@ -173,47 +357,19 @@ const Dashboard = () => {
         if (!window.confirm("Delete this link?")) return;
         try {
             await databases.deleteDocument(DB_ID, collection, docId);
-            // Show loading state while refreshing data
-            setIsLoading(true);
             await fetchData();
         } catch (err) {
+            console.error("Delete failed:", err);
             alert("Delete failed: " + err.message);
-            setIsLoading(false);
         }
     };
 
-    // Loading Animation Component
-    const LoadingSpinner = () => (
-        <div className="loading-container">
-            <div className="loading-spinner">
-                <Loader2 size={48} className="spinner-icon" />
-                <p>Loading your dashboard...</p>
-            </div>
-        </div>
-    );
-
-    // Skeleton Loader for Cards
-    const SkeletonCard = () => (
-        <div className="tracker-card skeleton">
-            <div className="card-top">
-                <div className="skeleton-user"></div>
-                <div className="skeleton-timestamp"></div>
-            </div>
-            <div className="card-actions">
-                <div className="skeleton-button"></div>
-                <div className="skeleton-icon"></div>
-            </div>
-        </div>
-    );
-
-    // Show full page loader on initial load
-    if (isInitialLoad) {
-        return (
-            <div className="dashboard-container">
-                <LoadingSpinner />
-            </div>
-        );
-    }
+    const scrollToTop = () => {
+        window.scrollTo({
+            top: 0,
+            behavior: "smooth",
+        });
+    };
 
     return (
         <div className="dashboard-container">
@@ -223,10 +379,23 @@ const Dashboard = () => {
                 </div>
                 <div className="nav-right">
                     <button
+                        onClick={fetchData}
+                        className="refresh-btn"
+                        disabled={isLoading}
+                    >
+                        <RefreshCw
+                            size={14}
+                            className={isLoading ? "spin" : ""}
+                        />
+                    </button>
+                    <button
                         className="filter-nav-btn"
                         onClick={() => setIsFilterModalOpen(true)}
                     >
-                        <Filter size={18} /> <span>Filter</span>
+                        <Filter size={18} />
+                        {(appliedUser !== "All Users" || appliedDate) && (
+                            <span className="filter-active-dot"></span>
+                        )}
                     </button>
                     <button
                         onClick={logout}
@@ -239,7 +408,7 @@ const Dashboard = () => {
                             className="arrow-trigger-btn"
                             onClick={() => setIsMenuOpen(true)}
                         >
-                            <ChevronUp size={24} />
+                            <User size={24} />
                         </button>
                     </div>
                 </div>
@@ -298,10 +467,7 @@ const Dashboard = () => {
                         <div className="modal-footer">
                             <button
                                 className="reset-btn"
-                                onClick={() => {
-                                    setTempUser("All Users");
-                                    setTempDate("");
-                                }}
+                                onClick={handleResetFilters}
                             >
                                 Reset
                             </button>
@@ -309,189 +475,268 @@ const Dashboard = () => {
                                 className="apply-btn"
                                 onClick={handleApplyFilters}
                             >
-                                Apply Filters
+                                Apply
                             </button>
                         </div>
                     </div>
                 </div>
             )}
 
-            <header className="welcome-section animated-fade">
-                <div className="welcome-content">
-                    <h1>
-                        Welcome, <span>{user?.name}</span>
-                    </h1>
-                    <p>
-                        Viewing <strong>{platform}</strong> records.
-                    </p>
+            {/* Current Time Card */}
+            <div className="time-card">
+                <div className="greeting">
+                    {getGreeting()}, {user?.name}!
                 </div>
-            </header>
-
-            {/* Mobile Tab Slider */}
-            <div className="slider-wrapper mobile-only">
-                <div className="radio-group">
-                    <div
-                        className={`slider-thumb ${activeTab === "comments" ? "slide-right" : ""}`}
-                    ></div>
-                    <div className="radio-option">
-                        <input
-                            type="radio"
-                            id="p-tab"
-                            checked={activeTab === "posts"}
-                            onChange={() => setActiveTab("posts")}
-                        />
-                        <label htmlFor="p-tab" className="radio-label">
-                            Posts
-                        </label>
-                    </div>
-                    <div className="radio-option">
-                        <input
-                            type="radio"
-                            id="c-tab"
-                            checked={activeTab === "comments"}
-                            onChange={() => setActiveTab("comments")}
-                        />
-                        <label htmlFor="c-tab" className="radio-label">
-                            Comments
-                        </label>
-                    </div>
+                <div className="current-date">
+                    <Calendar size={14} />
+                    {formatDateOnly(currentTime)}
                 </div>
             </div>
 
-            <div className="tracker-grid">
-                {/* Posts Column */}
-                <div
-                    className={`tracker-column ${activeTab !== "posts" ? "hide-on-mobile" : ""}`}
-                >
-                    <div className="column-header">
-                        <h3>
-                            <LinkIcon size={20} color="#4f46e5" /> Posts{" "}
-                            <span className="count-badge">
-                                {filteredPosts.length}
+            {/* Last Updated */}
+            {lastUpdated && (
+                <div className="last-updated">
+                    <Activity size={12} />
+                    <span>Last synced {formatDateTime(lastUpdated)}</span>
+                </div>
+            )}
+
+            {/* Active Filters */}
+            {(appliedUser !== "All Users" || appliedDate) && (
+                <div className="active-filters">
+                    <div className="filter-tags">
+                        {appliedUser !== "All Users" && (
+                            <span className="filter-tag">
+                                {appliedUser}
+                                <X
+                                    size={12}
+                                    onClick={() => setAppliedUser("All Users")}
+                                />
                             </span>
-                        </h3>
-                        <button
-                            className="add-btn-round"
-                            onClick={() => setShowPostInput(true)}
-                            disabled={isLoading}
-                        >
-                            <Plus />
-                        </button>
+                        )}
+                        {appliedDate && (
+                            <span className="filter-tag">
+                                {appliedDate}
+                                <X
+                                    size={12}
+                                    onClick={() => setAppliedDate("")}
+                                />
+                            </span>
+                        )}
                     </div>
-                    {showPostInput && (
-                        <div className="floating-form-container animated-fade">
+                    <button
+                        className="clear-filters"
+                        onClick={handleResetFilters}
+                    >
+                        Clear
+                    </button>
+                </div>
+            )}
+
+            {/* View Toggle */}
+            <div className="view-toggle-container">
+                <button
+                    className={`view-toggle-btn ${activeView === "posts" ? "active" : ""}`}
+                    onClick={() => setActiveView("posts")}
+                >
+                    <LinkIcon size={18} />
+                    <span>Posts</span>
+                    <span className="count">{filteredPosts.length}</span>
+                </button>
+                <button
+                    className={`view-toggle-btn ${activeView === "comments" ? "active" : ""}`}
+                    onClick={() => setActiveView("comments")}
+                >
+                    <MessageCircle size={18} />
+                    <span>Comments</span>
+                    <span className="count">{filteredComments.length}</span>
+                </button>
+            </div>
+
+            {/* Content Area */}
+            <div className="content-area">
+                {/* Posts View */}
+                {activeView === "posts" && (
+                    <div className="view-content">
+                        <div className="view-header">
+                            <h3>
+                                <LinkIcon size={20} /> Posts
+                                {stats.todaysPosts > 0 && (
+                                    <span className="today-badge">
+                                        +{stats.todaysPosts} today
+                                    </span>
+                                )}
+                            </h3>
+                            <button
+                                className="add-btn"
+                                onClick={() => setShowPostInput(true)}
+                            >
+                                <Plus size={18} />
+                            </button>
+                        </div>
+
+                        {showPostInput && (
                             <form
                                 onSubmit={(e) => handleAddTracker(e, "post")}
-                                className="tracker-form"
+                                className="add-form"
                             >
                                 <input
                                     type="url"
-                                    placeholder={`Add ${platform} post...`}
+                                    placeholder="Paste URL (include http:// or https://)"
                                     value={postUrl}
                                     onChange={(e) => setPostUrl(e.target.value)}
                                     required
                                     autoFocus
-                                    disabled={isLoading}
                                 />
                                 <div className="form-actions">
-                                    <button type="submit" disabled={isLoading}>
-                                        {isLoading ? (
-                                            <Loader2
-                                                size={16}
-                                                className="spinning"
-                                            />
-                                        ) : (
-                                            "Track"
-                                        )}
+                                    <button
+                                        type="submit"
+                                        className="submit-btn"
+                                    >
+                                        Add Post
                                     </button>
                                     <button
                                         type="button"
                                         className="cancel-btn"
                                         onClick={() => setShowPostInput(false)}
-                                        disabled={isLoading}
                                     >
                                         Cancel
                                     </button>
                                 </div>
                             </form>
-                        </div>
-                    )}
-                    <div className="cards-list">
-                        {isLoading ? (
-                            // Show skeleton loaders while loading
-                            <>
-                                <SkeletonCard />
-                                <SkeletonCard />
-                                <SkeletonCard />
-                            </>
-                        ) : (
-                            filteredPosts.map((item) => (
-                                <LinkCard
-                                    key={item.$id}
-                                    data={item}
-                                    currentUser={user?.name}
-                                    isNew={
-                                        item.username !== user?.name &&
-                                        !visitedLinks.includes(item.$id)
-                                    }
-                                    onVisit={() =>
-                                        handleVisit(item.$id, item.url)
-                                    }
-                                    onDelete={() =>
-                                        handleDelete(item.$id, POST_COLLECTION)
-                                    }
-                                />
-                            ))
                         )}
-                    </div>
-                </div>
 
-                {/* Comments Column */}
-                <div
-                    className={`tracker-column ${activeTab !== "comments" ? "hide-on-mobile" : ""}`}
-                >
-                    <div className="column-header">
-                        <h3>
-                            <Clock size={20} color="#0891b2" /> Comments{" "}
-                            <span className="count-badge">
-                                {filteredComments.length}
-                            </span>
-                        </h3>
-                        <button
-                            className="add-btn-round alt"
-                            onClick={() => setShowCommentInput(true)}
-                            disabled={isLoading}
-                        >
-                            <Plus />
-                        </button>
+                        <div className="cards-list">
+                            {filteredPosts.length === 0 ? (
+                                <div className="empty-state">
+                                    <LinkIcon size={48} />
+                                    <p>No posts yet</p>
+                                    <button
+                                        onClick={() => setShowPostInput(true)}
+                                    >
+                                        Add your first post
+                                    </button>
+                                </div>
+                            ) : (
+                                filteredPosts.map((item) => {
+                                    const itemDate = parseDate(
+                                        item.createdAt || item.$createdAt,
+                                    );
+                                    const isToday =
+                                        itemDate.toDateString() ===
+                                        today.toDateString();
+                                    return (
+                                        <div
+                                            key={item.$id}
+                                            className={`card ${isToday ? "today" : ""}`}
+                                        >
+                                            <div className="card-info">
+                                                <div className="card-user">
+                                                    <User size={14} />
+                                                    <span className="username">
+                                                        {item.username}
+                                                    </span>
+                                                    <span
+                                                        className="platform-badge"
+                                                        data-platform={
+                                                            item.platform ||
+                                                            "reddit"
+                                                        }
+                                                    >
+                                                        {item.platform ||
+                                                            "reddit"}
+                                                    </span>
+                                                </div>
+                                                <div className="card-time">
+                                                    <Clock size={12} />
+                                                    <span>
+                                                        {formatDateTime(
+                                                            itemDate,
+                                                        )}
+                                                    </span>
+                                                    {isToday && (
+                                                        <span className="today-tag">
+                                                            Today
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="card-actions">
+                                                <button
+                                                    onClick={() =>
+                                                        handleVisit(
+                                                            item.$id,
+                                                            item.url,
+                                                        )
+                                                    }
+                                                    className="visit-btn"
+                                                >
+                                                    Open
+                                                </button>
+                                                {item.username ===
+                                                    user?.name && (
+                                                    <button
+                                                        onClick={() =>
+                                                            handleDelete(
+                                                                item.$id,
+                                                                POST_COLLECTION,
+                                                            )
+                                                        }
+                                                        className="delete-btn"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            )}
+                        </div>
                     </div>
-                    {showCommentInput && (
-                        <div className="floating-form-container animated-fade">
+                )}
+
+                {/* Comments View */}
+                {activeView === "comments" && (
+                    <div className="view-content">
+                        <div className="view-header">
+                            <h3>
+                                <MessageCircle size={20} /> Comments
+                                {stats.todaysComments > 0 && (
+                                    <span className="today-badge">
+                                        +{stats.todaysComments} today
+                                    </span>
+                                )}
+                            </h3>
+                            <button
+                                className="add-btn"
+                                onClick={() => setShowCommentInput(true)}
+                            >
+                                <Plus size={18} />
+                            </button>
+                        </div>
+
+                        {showCommentInput && (
                             <form
                                 onSubmit={(e) => handleAddTracker(e, "comment")}
-                                className="tracker-form"
+                                className="add-form"
                             >
                                 <input
                                     type="url"
-                                    placeholder={`Add ${platform} comment...`}
+                                    placeholder="Paste URL (include http:// or https://)"
                                     value={commentUrl}
                                     onChange={(e) =>
                                         setCommentUrl(e.target.value)
                                     }
                                     required
                                     autoFocus
-                                    disabled={isLoading}
                                 />
                                 <div className="form-actions">
-                                    <button type="submit" disabled={isLoading}>
-                                        {isLoading ? (
-                                            <Loader2
-                                                size={16}
-                                                className="spinning"
-                                            />
-                                        ) : (
-                                            "Track"
-                                        )}
+                                    <button
+                                        type="submit"
+                                        className="submit-btn"
+                                    >
+                                        Add Comment
                                     </button>
                                     <button
                                         type="button"
@@ -499,114 +744,166 @@ const Dashboard = () => {
                                         onClick={() =>
                                             setShowCommentInput(false)
                                         }
-                                        disabled={isLoading}
                                     >
                                         Cancel
                                     </button>
                                 </div>
                             </form>
-                        </div>
-                    )}
-                    <div className="cards-list">
-                        {isLoading ? (
-                            // Show skeleton loaders while loading
-                            <>
-                                <SkeletonCard />
-                                <SkeletonCard />
-                                <SkeletonCard />
-                            </>
-                        ) : (
-                            filteredComments.map((item) => (
-                                <LinkCard
-                                    key={item.$id}
-                                    data={item}
-                                    currentUser={user?.name}
-                                    isNew={
-                                        item.username !== user?.name &&
-                                        !visitedLinks.includes(item.$id)
-                                    }
-                                    onVisit={() =>
-                                        handleVisit(item.$id, item.url)
-                                    }
-                                    onDelete={() =>
-                                        handleDelete(
-                                            item.$id,
-                                            COMMENT_COLLECTION,
-                                        )
-                                    }
-                                />
-                            ))
                         )}
+
+                        <div className="cards-list">
+                            {filteredComments.length === 0 ? (
+                                <div className="empty-state">
+                                    <MessageCircle size={48} />
+                                    <p>No comments yet</p>
+                                    <button
+                                        onClick={() =>
+                                            setShowCommentInput(true)
+                                        }
+                                    >
+                                        Add your first comment
+                                    </button>
+                                </div>
+                            ) : (
+                                filteredComments.map((item) => {
+                                    const itemDate = parseDate(
+                                        item.createdAt || item.$createdAt,
+                                    );
+                                    const isToday =
+                                        itemDate.toDateString() ===
+                                        today.toDateString();
+                                    return (
+                                        <div
+                                            key={item.$id}
+                                            className={`card ${isToday ? "today" : ""}`}
+                                        >
+                                            <div className="card-info">
+                                                <div className="card-user">
+                                                    <User size={14} />
+                                                    <span className="username">
+                                                        {item.username}
+                                                    </span>
+                                                    <span
+                                                        className="platform-badge"
+                                                        data-platform={
+                                                            item.platform ||
+                                                            "reddit"
+                                                        }
+                                                    >
+                                                        {item.platform ||
+                                                            "reddit"}
+                                                    </span>
+                                                </div>
+                                                <div className="card-time">
+                                                    <Clock size={12} />
+                                                    <span>
+                                                        {formatDateTime(
+                                                            itemDate,
+                                                        )}
+                                                    </span>
+                                                    {isToday && (
+                                                        <span className="today-tag">
+                                                            Today
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="card-actions">
+                                                <button
+                                                    onClick={() =>
+                                                        handleVisit(
+                                                            item.$id,
+                                                            item.url,
+                                                        )
+                                                    }
+                                                    className="visit-btn"
+                                                >
+                                                    Open
+                                                </button>
+                                                {item.username ===
+                                                    user?.name && (
+                                                    <button
+                                                        onClick={() =>
+                                                            handleDelete(
+                                                                item.$id,
+                                                                COMMENT_COLLECTION,
+                                                            )
+                                                        }
+                                                        className="delete-btn"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            )}
+                        </div>
                     </div>
-                </div>
+                )}
             </div>
 
-            {/* STICKY TOGGLE BAR */}
-            <div className="sticky-toggle-container">
-                <div className="platform-toggle">
-                    <button
-                        className={`toggle-btn ${platform === "reddit" ? "active reddit" : ""}`}
-                        onClick={() => setPlatform("reddit")}
-                        disabled={isLoading}
-                    >
-                        <MessageSquare size={16} /> Reddit
-                    </button>
-                    <button
-                        className={`toggle-btn ${platform === "facebook" ? "active facebook" : ""}`}
-                        onClick={() => setPlatform("facebook")}
-                        disabled={isLoading}
-                    >
-                        <Facebook size={16} /> Facebook
-                    </button>
-                </div>
-            </div>
-
-            {/* Bottom Menu */}
-            <div className={`bottom-sheet ${isMenuOpen ? "open" : ""}`}>
+            {/* Platform Toggle */}
+            <div className="platform-toggle-container">
                 <button
-                    className="arrow-close-btn"
-                    onClick={() => setIsMenuOpen(false)}
+                    className={`platform-btn ${platform === "reddit" ? "active" : ""}`}
+                    onClick={() => setPlatform("reddit")}
                 >
-                    <ChevronDown size={28} />
+                    <MessageSquare size={16} /> Reddit
                 </button>
-                <div className="user-profile">
-                    <div className="avatar-circle">
-                        <User size={40} />
-                    </div>
-                    <p className="drawer-username">{user?.name}</p>
+                <button
+                    className={`platform-btn ${platform === "facebook" ? "active" : ""}`}
+                    onClick={() => setPlatform("facebook")}
+                >
+                    <Facebook size={16} /> Facebook
+                </button>
+            </div>
+
+            {/* Back to Top Button */}
+            {showBackToTop && (
+                <button
+                    className="back-to-top"
+                    onClick={scrollToTop}
+                    aria-label="Back to top"
+                >
+                    <ChevronUp size={24} />
+                </button>
+            )}
+
+            {/* Mobile Menu */}
+            <div className={`mobile-menu ${isMenuOpen ? "open" : ""}`}>
+                <div className="menu-header">
+                    <h3>Menu</h3>
+                    <button onClick={() => setIsMenuOpen(false)}>
+                        <X size={24} />
+                    </button>
                 </div>
-                <div className="drawer-stats-container">
-                    <div className="drawer-stat-row">
-                        <div className="drawer-stat-icon post-icon">
-                            <LinkIcon size={18} />
-                        </div>
-                        <div className="drawer-stat-info">
-                            <span>Total Posts</span>
-                            <strong>{stats.totalPosts}</strong>
-                        </div>
+                <div className="menu-user">
+                    <div className="avatar">
+                        <User size={32} />
                     </div>
-                    <div className="drawer-stat-row">
-                        <div className="drawer-stat-icon comment-icon">
-                            <Clock size={18} />
-                        </div>
-                        <div className="drawer-stat-info">
-                            <span>Total Comments</span>
-                            <strong>{stats.totalComments}</strong>
-                        </div>
+                    <span>{user?.name}</span>
+                </div>
+                <div className="menu-stats">
+                    <div className="menu-stat">
+                        <span>Posts</span>
+                        <strong>{stats.totalPosts}</strong>
                     </div>
-                    <div className="drawer-stat-row">
-                        <div className="drawer-stat-icon engage-icon">
-                            <BarChart3 size={18} />
-                        </div>
-                        <div className="drawer-stat-info">
-                            <span>Engagements</span>
-                            <strong className="engaged-text">
-                                {stats.engagedCount}
-                            </strong>
-                        </div>
+                    <div className="menu-stat">
+                        <span>Comments</span>
+                        <strong>{stats.totalComments}</strong>
+                    </div>
+                    <div className="menu-stat">
+                        <span>Today</span>
+                        <strong>{stats.totalTodays}</strong>
                     </div>
                 </div>
-                <button onClick={logout} className="logout-btn-full">
+                <div className="menu-time">
+                    <Clock size={16} />
+                    <span>{formatDateTime(currentTime)}</span>
+                </div>
+                <button onClick={logout} className="menu-logout">
                     Logout
                 </button>
             </div>
@@ -617,34 +914,6 @@ const Dashboard = () => {
                     onClick={() => setIsMenuOpen(false)}
                 ></div>
             )}
-        </div>
-    );
-};
-
-const LinkCard = ({ data, currentUser, isNew, onVisit, onDelete }) => {
-    const [date, time] = data.createdAt ? data.createdAt.split(", ") : ["", ""];
-    return (
-        <div className="tracker-card animated-fade">
-            {isNew && <span className="new-badge">New</span>}
-            <div className="card-top">
-                <p className="card-user">
-                    <User size={14} /> {data.username}
-                </p>
-                <div className="card-timestamp">
-                    <span className="card-date">{date}</span>
-                    <span className="card-time">{time}</span>
-                </div>
-            </div>
-            <div className="card-actions">
-                <button onClick={onVisit} className="visit-btn">
-                    Open Link <ExternalLink size={14} />
-                </button>
-                {data.username === currentUser && (
-                    <button onClick={onDelete} className="delete-icon-btn">
-                        <Trash2 size={18} />
-                    </button>
-                )}
-            </div>
         </div>
     );
 };

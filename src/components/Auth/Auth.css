@@ -20,6 +20,7 @@ html, body {
   --text-main: #0f172a;
   --text-muted: #64748b;
   --error: #ef4444;
+  --success: #10b981;
   --border: #e2e8f0;
   --input-focus: rgba(79, 70, 229, 0.15);
   --shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
@@ -107,18 +108,40 @@ html, body {
   color: var(--text-main);
 }
 
+/* Input Field Container */
 .input-field {
   position: relative;
   display: flex;
   align-items: center;
 }
 
+/* Icons */
 .field-icon {
   position: absolute;
   left: 12px;
   color: var(--text-muted);
+  z-index: 1;
 }
 
+.success-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--success);
+  z-index: 1;
+}
+
+.error-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--error);
+  z-index: 1;
+}
+
+/* Input Fields */
 .input-field input {
   width: 100%;
   padding: 12px 12px 12px 40px;
@@ -135,6 +158,38 @@ html, body {
   box-shadow: 0 0 0 4px var(--input-focus);
 }
 
+/* Disabled Input State */
+.input-field input:disabled {
+  background-color: #f3f4f6;
+  cursor: not-allowed;
+  opacity: 0.7;
+  border-color: #d1d5db;
+}
+
+.input-field input:disabled:hover {
+  border-color: #d1d5db;
+}
+
+/* Success State */
+.input-field.success input {
+  border-color: var(--success);
+}
+
+.input-field.success input:focus {
+  border-color: var(--success);
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
+}
+
+/* Error State */
+.input-field.error input {
+  border-color: var(--error);
+}
+
+.input-field.error input:focus {
+  border-color: var(--error);
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.1);
+}
+
 /* Password Toggle */
 .password-toggle {
   position: absolute;
@@ -145,6 +200,92 @@ html, body {
   cursor: pointer;
   display: flex;
   padding: 4px;
+  z-index: 1;
+}
+
+.password-toggle:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* Username/Email Status Messages */
+.username-status {
+  font-size: 12px;
+  margin-top: 4px;
+  padding-left: 4px;
+}
+
+.username-status.success {
+  color: var(--success);
+}
+
+.username-status.error {
+  color: var(--error);
+}
+
+/* Error Text */
+.error-text {
+  color: var(--error);
+  font-size: 12px;
+  margin-top: 4px;
+  display: block;
+}
+
+/* Success Text */
+.success-text {
+  display: block;
+  font-size: 12px;
+  color: var(--success);
+  margin-top: 4px;
+}
+
+/* Password Hint */
+.password-hint {
+  display: block;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+/* Error Banner */
+.error-banner {
+  background-color: #fee2e2;
+  border: 1px solid var(--error);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #b91c1c;
+  font-size: 14px;
+  flex-wrap: wrap;
+}
+
+.error-banner svg {
+  flex-shrink: 0;
+  color: var(--error);
+}
+
+.error-actions {
+  margin-left: auto;
+}
+
+.switch-to-login {
+  background: none;
+  border: 1px solid var(--error);
+  color: #b91c1c;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+  transition: all 0.2s;
+}
+
+.switch-to-login:hover {
+  background-color: var(--error);
+  color: white;
 }
 
 /* Submit Button */
@@ -161,14 +302,20 @@ html, body {
   transition: transform 0.1s ease, background 0.2s ease;
 }
 
-.auth-submit-btn:hover {
+.auth-submit-btn:hover:not(:disabled) {
   background: var(--primary-hover);
 }
 
-.auth-submit-btn:active {
+.auth-submit-btn:active:not(:disabled) {
   transform: scale(0.98);
 }
 
+.auth-submit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Footer */
 .auth-footer {
   margin-top: 24px;
   text-align: center;
@@ -185,10 +332,51 @@ html, body {
   margin-left: 5px;
 }
 
-/* Mobile: Ensure color stays visible */
+.toggle-auth-btn:hover {
+  text-decoration: underline;
+}
+
+/* Loading Spinners */
+
+/* Small spinner for buttons */
+.loading-spinner-small {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: #fff;
+  animation: spin 1s ease-in-out infinite;
+}
+
+/* Spinner for username/email checking */
+.spinner-small {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  border: 2px solid #e5e7eb;
+  border-radius: 50%;
+  border-top-color: var(--primary);
+  animation: spin 0.8s linear infinite;
+  z-index: 1;
+}
+
+/* Keyframes for spin animation */
+@keyframes spin {
+  to { transform: translateY(-50%) rotate(360deg); }
+}
+
+/* Mobile Responsive */
 @media (max-width: 480px) {
   .auth-card {
     padding: 30px 20px;
     border-radius: 16px;
+  }
+  
+  .logo-section h1 {
+    font-size: 2rem;
   }
 }
