@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import {
@@ -28,6 +28,15 @@ const Auth = () => {
         available: null,
         message: "",
     });
+    
+    // Refs to manipulate DOM directly
+    const emailInputRef = useRef(null);
+    const passwordInputRef = useRef(null);
+    const nameInputRef = useRef(null);
+    const formRef = useRef(null);
+    
+    // Track if initial clear has been done
+    const initialClearDone = useRef(false);
 
     const { login, register, checkUsernameExists, checkEmailExists } =
         useAuth();
@@ -175,31 +184,6 @@ const Auth = () => {
                       .required("Username is required")
                 : Yup.string(),
         }),
-        validate: (values) => {
-            const errors = {};
-
-            if (!isLogin) {
-                if (values.name) {
-                    if (values.name.length < 3) {
-                        errors.name = "Username must be at least 3 characters";
-                    } else if (values.name.length > 30) {
-                        errors.name =
-                            "Username must be less than 30 characters";
-                    } else if (!/^[a-zA-Z0-9_]+$/.test(values.name)) {
-                        errors.name =
-                            "Username can only contain letters, numbers, and underscores";
-                    } else if (usernameStatus.available === false) {
-                        errors.name = "This username is already taken";
-                    }
-                }
-
-                if (values.email && emailStatus.available === false) {
-                    errors.email = "This email is already registered";
-                }
-            }
-
-            return errors;
-        },
         onSubmit: async (
             values,
             { setSubmitting, setFieldError, resetForm },
@@ -284,9 +268,53 @@ const Auth = () => {
         },
     });
 
+    // Function to clear only autofilled values (not user input)
+    const clearAutofilledInputs = useCallback(() => {
+        // Only clear if fields haven't been touched by user
+        if (!formik.touched.email && emailInputRef.current && emailInputRef.current.value) {
+            emailInputRef.current.value = '';
+            formik.setFieldValue('email', '');
+        }
+        if (!formik.touched.password && passwordInputRef.current && passwordInputRef.current.value) {
+            passwordInputRef.current.value = '';
+            formik.setFieldValue('password', '');
+        }
+        if (!formik.touched.name && nameInputRef.current && nameInputRef.current.value) {
+            nameInputRef.current.value = '';
+            formik.setFieldValue('name', '');
+        }
+    }, [formik]);
+
+    // Clear autofill on mount and when toggling modes - but only once
+    useEffect(() => {
+        // Only run initial clear if not done yet
+        if (!initialClearDone.current) {
+            clearAutofilledInputs();
+            
+            // Multiple timers to catch autofill at different times
+            const timers = [
+                setTimeout(() => {
+                    clearAutofilledInputs();
+                    initialClearDone.current = true;
+                }, 100),
+                setTimeout(clearAutofilledInputs, 300),
+                setTimeout(clearAutofilledInputs, 500)
+            ];
+            
+            return () => timers.forEach(clearTimeout);
+        }
+    }, [isLogin, clearAutofilledInputs]);
+
+    // Reset initial clear flag when toggling modes
+    useEffect(() => {
+        initialClearDone.current = false;
+    }, [isLogin]);
+
+    // Handle input changes
     const handleNameChange = (e) => {
         const value = e.target.value;
-        formik.handleChange(e);
+        formik.setFieldValue('name', value);
+        formik.setFieldTouched('name', true, false);
 
         if (!value) {
             setUsernameStatus({
@@ -317,7 +345,8 @@ const Auth = () => {
 
     const handleEmailChange = (e) => {
         const value = e.target.value;
-        formik.handleChange(e);
+        formik.setFieldValue('email', value);
+        formik.setFieldTouched('email', true, false);
 
         if (!value || !value.includes("@")) {
             setEmailStatus({
@@ -331,18 +360,11 @@ const Auth = () => {
         debouncedEmailCheck(value);
     };
 
-    useEffect(() => {
-        setUsernameStatus({
-            checking: false,
-            available: null,
-            message: "",
-        });
-        setEmailStatus({
-            checking: false,
-            available: null,
-            message: "",
-        });
-    }, [isLogin]);
+    const handlePasswordChange = (e) => {
+        const value = e.target.value;
+        formik.setFieldValue('password', value);
+        formik.setFieldTouched('password', true, false);
+    };
 
     const getUsernameIcon = () => {
         if (usernameStatus.checking) {
@@ -369,7 +391,6 @@ const Auth = () => {
     const isEmailDisabled = () => {
         if (isLogin) return false;
         
-        // Disable email input if username is invalid or being checked
         return (
             usernameStatus.checking || 
             usernameStatus.available === false || 
@@ -381,7 +402,9 @@ const Auth = () => {
 
     const isSubmitDisabled = () => {
         if (formik.isSubmitting) return true;
-        if (isLogin) return false;
+        if (isLogin) {
+            return !formik.values.email || !formik.values.password;
+        }
 
         if (
             !formik.values.email ||
@@ -434,7 +457,8 @@ const Auth = () => {
                                         onClick={() => {
                                             setIsLogin(true);
                                             setRegistrationError("");
-                                            formik.resetForm();
+                                            clearAutofilledInputs();
+                                            initialClearDone.current = false;
                                         }}
                                     >
                                         Sign In Now
@@ -445,9 +469,11 @@ const Auth = () => {
                 )}
 
                 <form
+                    ref={formRef}
                     onSubmit={formik.handleSubmit}
                     className="auth-form"
                     noValidate
+                    autoComplete="new-password"
                 >
                     {!isLogin && (
                         <div className="input-group">
@@ -463,10 +489,11 @@ const Auth = () => {
                             >
                                 {getUsernameIcon()}
                                 <input
+                                    ref={nameInputRef}
                                     name="name"
                                     type="text"
                                     placeholder="johndoe_123"
-                                    autoComplete="off"
+                                    autoComplete="new-password"
                                     autoCapitalize="none"
                                     autoCorrect="off"
                                     spellCheck="false"
@@ -509,10 +536,11 @@ const Auth = () => {
                                 <Mail className="field-icon" size={18} />
                             )}
                             <input
+                                ref={emailInputRef}
                                 name="email"
                                 type="email"
                                 placeholder="name@company.com"
-                                autoComplete="email"
+                                autoComplete="new-password"
                                 autoCapitalize="none"
                                 autoCorrect="off"
                                 spellCheck="false"
@@ -522,11 +550,7 @@ const Auth = () => {
                                         : ""
                                 }
                                 value={formik.values.email}
-                                onChange={
-                                    !isLogin
-                                        ? handleEmailChange
-                                        : formik.handleChange
-                                }
+                                onChange={handleEmailChange}
                                 onBlur={formik.handleBlur}
                                 disabled={!isLogin && isEmailDisabled()}
                                 style={
@@ -569,14 +593,11 @@ const Auth = () => {
                         <div className="input-field">
                             <Lock className="field-icon" size={18} />
                             <input
+                                ref={passwordInputRef}
                                 name="password"
                                 type={showPassword ? "text" : "password"}
                                 placeholder="••••••••"
-                                autoComplete={
-                                    isLogin
-                                        ? "current-password"
-                                        : "new-password"
-                                }
+                                autoComplete="new-password"
                                 autoCapitalize="none"
                                 autoCorrect="off"
                                 className={
@@ -595,7 +616,9 @@ const Auth = () => {
                                           }
                                         : {}
                                 }
-                                {...formik.getFieldProps("password")}
+                                value={formik.values.password}
+                                onChange={handlePasswordChange}
+                                onBlur={formik.handleBlur}
                             />
                             <button
                                 type="button"
@@ -653,7 +676,8 @@ const Auth = () => {
                                     available: null,
                                     message: "",
                                 });
-                                formik.resetForm();
+                                clearAutofilledInputs();
+                                initialClearDone.current = false;
                             }}
                         >
                             {isLogin ? "Create one" : "Sign in"}

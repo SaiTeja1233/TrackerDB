@@ -397,12 +397,6 @@ const Dashboard = () => {
                             <span className="filter-active-dot"></span>
                         )}
                     </button>
-                    <button
-                        onClick={logout}
-                        className="logout-btn desktop-only"
-                    >
-                        Logout
-                    </button>
                     <div className="menu-wrapper mobile-only">
                         <button
                             className="arrow-trigger-btn"
