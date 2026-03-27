@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { databases, ID, Query } from "../appwrite";
 import { useAuth } from "../context/AuthContext";
+import * as XLSX from "xlsx";
 import {
     User,
     Link as LinkIcon,
@@ -16,6 +17,7 @@ import {
     Activity,
     MessageCircle,
     ChevronUp,
+    Download,
 } from "lucide-react";
 import "./Dashboard.css";
 
@@ -32,6 +34,7 @@ const Dashboard = () => {
     const [lastUpdated, setLastUpdated] = useState(null);
     const [currentTime, setCurrentTime] = useState(new Date());
     const [showBackToTop, setShowBackToTop] = useState(false);
+    const [isDownloading, setIsDownloading] = useState(false);
 
     const [showPostInput, setShowPostInput] = useState(false);
     const [showCommentInput, setShowCommentInput] = useState(false);
@@ -369,6 +372,284 @@ const Dashboard = () => {
             top: 0,
             behavior: "smooth",
         });
+    };
+
+    // Download functionality with only User Summary and Platform Data
+    const handleDownloadData = async () => {
+        setIsDownloading(true);
+        try {
+            // Create workbook
+            const wb = XLSX.utils.book_new();
+
+            // ==================== SHEET 1: USER SUMMARY ====================
+            const excelData = [];
+
+            // Get all unique usernames
+            const allItems = [...posts, ...comments];
+            const uniqueUsers = [
+                ...new Set(allItems.map((item) => item.username)),
+            ];
+
+            uniqueUsers.forEach((username) => {
+                const userPosts = posts.filter(
+                    (post) => post.username === username,
+                );
+                const userComments = comments.filter(
+                    (comment) => comment.username === username,
+                );
+                const userRedditPosts = userPosts.filter(
+                    (post) => (post.platform || "reddit") === "reddit",
+                );
+                const userFacebookPosts = userPosts.filter(
+                    (post) => post.platform === "facebook",
+                );
+                const userRedditComments = userComments.filter(
+                    (comment) => (comment.platform || "reddit") === "reddit",
+                );
+                const userFacebookComments = userComments.filter(
+                    (comment) => comment.platform === "facebook",
+                );
+
+                excelData.push({
+                    Username: username,
+                    "Total Posts": userPosts.length,
+                    "Total Comments": userComments.length,
+                    "Total Activities": userPosts.length + userComments.length,
+                    "Reddit Posts": userRedditPosts.length,
+                    "Reddit Comments": userRedditComments.length,
+                    "Reddit Total":
+                        userRedditPosts.length + userRedditComments.length,
+                    "Facebook Posts": userFacebookPosts.length,
+                    "Facebook Comments": userFacebookComments.length,
+                    "Facebook Total":
+                        userFacebookPosts.length + userFacebookComments.length,
+                });
+            });
+
+            // Sort by total activities
+            excelData.sort(
+                (a, b) => b["Total Activities"] - a["Total Activities"],
+            );
+
+            // Add summary row
+            const totalPosts = posts.length;
+            const totalComments = comments.length;
+            const totalRedditPosts = posts.filter(
+                (p) => (p.platform || "reddit") === "reddit",
+            ).length;
+            const totalRedditComments = comments.filter(
+                (c) => (c.platform || "reddit") === "reddit",
+            ).length;
+            const totalFacebookPosts = posts.filter(
+                (p) => p.platform === "facebook",
+            ).length;
+            const totalFacebookComments = comments.filter(
+                (c) => c.platform === "facebook",
+            ).length;
+
+            const summaryRow = {
+                Username: "TOTAL SUMMARY",
+                "Total Posts": totalPosts,
+                "Total Comments": totalComments,
+                "Total Activities": totalPosts + totalComments,
+                "Reddit Posts": totalRedditPosts,
+                "Reddit Comments": totalRedditComments,
+                "Reddit Total": totalRedditPosts + totalRedditComments,
+                "Facebook Posts": totalFacebookPosts,
+                "Facebook Comments": totalFacebookComments,
+                "Facebook Total": totalFacebookPosts + totalFacebookComments,
+            };
+
+            excelData.push({}); // Empty row for separation
+            excelData.push(summaryRow);
+
+            // Create worksheet for user summary
+            const wsSummary = XLSX.utils.json_to_sheet(excelData);
+
+            // Add filter ONLY to Username column (Column A)
+            if (excelData.length > 0) {
+                const range = XLSX.utils.decode_range(wsSummary["!ref"]);
+                // Apply filter only to the first column (Username)
+                wsSummary["!autofilter"] = {
+                    ref: XLSX.utils.encode_range({
+                        s: { r: range.s.r, c: 0 }, // Start at first column, first data row
+                        e: { r: range.e.r, c: 0 }, // End at first column, last row
+                    }),
+                };
+            }
+
+            // Set column widths
+            wsSummary["!cols"] = [
+                { wch: 20 }, // Username
+                { wch: 12 }, // Total Posts
+                { wch: 15 }, // Total Comments
+                { wch: 15 }, // Total Activities
+                { wch: 12 }, // Reddit Posts
+                { wch: 15 }, // Reddit Comments
+                { wch: 12 }, // Reddit Total
+                { wch: 15 }, // Facebook Posts
+                { wch: 18 }, // Facebook Comments
+                { wch: 15 }, // Facebook Total
+            ];
+
+            // Style the header row
+            const headerRange = XLSX.utils.decode_range(wsSummary["!ref"]);
+            for (let C = headerRange.s.c; C <= headerRange.e.c; ++C) {
+                const cellAddress = XLSX.utils.encode_cell({
+                    r: headerRange.s.r,
+                    c: C,
+                });
+                if (!wsSummary[cellAddress]) continue;
+                wsSummary[cellAddress].s = {
+                    font: { bold: true, sz: 12 },
+                    fill: { fgColor: { rgb: "E8F4FD" } },
+                    alignment: { horizontal: "center" },
+                };
+            }
+
+            XLSX.utils.book_append_sheet(wb, wsSummary, "User Summary");
+
+            // ==================== SHEET 2: PLATFORM DATA ====================
+            const platformData = [];
+
+            // Get all unique usernames for platform data
+            const allUsers = [
+                ...new Set(
+                    [...posts, ...comments].map((item) => item.username),
+                ),
+            ];
+
+            allUsers.forEach((username) => {
+                const userPosts = posts.filter((p) => p.username === username);
+                const userComments = comments.filter(
+                    (c) => c.username === username,
+                );
+
+                const redditPosts = userPosts.filter(
+                    (p) => (p.platform || "reddit") === "reddit",
+                ).length;
+                const redditComments = userComments.filter(
+                    (c) => (c.platform || "reddit") === "reddit",
+                ).length;
+                const facebookPosts = userPosts.filter(
+                    (p) => p.platform === "facebook",
+                ).length;
+                const facebookComments = userComments.filter(
+                    (c) => c.platform === "facebook",
+                ).length;
+
+                platformData.push({
+                    User: username,
+                    Platform: "Reddit",
+                    Posts: redditPosts,
+                    Comments: redditComments,
+                    Total: redditPosts + redditComments,
+                });
+
+                platformData.push({
+                    User: username,
+                    Platform: "Facebook",
+                    Posts: facebookPosts,
+                    Comments: facebookComments,
+                    Total: facebookPosts + facebookComments,
+                });
+            });
+
+            // Add summary rows for platform data
+            const totalRedditPostsAll = posts.filter(
+                (p) => (p.platform || "reddit") === "reddit",
+            ).length;
+            const totalRedditCommentsAll = comments.filter(
+                (c) => (c.platform || "reddit") === "reddit",
+            ).length;
+            const totalFacebookPostsAll = posts.filter(
+                (p) => p.platform === "facebook",
+            ).length;
+            const totalFacebookCommentsAll = comments.filter(
+                (c) => c.platform === "facebook",
+            ).length;
+
+            platformData.push({}); // Empty row
+            platformData.push({
+                User: "TOTAL",
+                Platform: "Reddit",
+                Posts: totalRedditPostsAll,
+                Comments: totalRedditCommentsAll,
+                Total: totalRedditPostsAll + totalRedditCommentsAll,
+            });
+
+            platformData.push({
+                User: "TOTAL",
+                Platform: "Facebook",
+                Posts: totalFacebookPostsAll,
+                Comments: totalFacebookCommentsAll,
+                Total: totalFacebookPostsAll + totalFacebookCommentsAll,
+            });
+
+            // Create worksheet for platform data
+            const wsPlatform = XLSX.utils.json_to_sheet(platformData);
+
+            // Add filters to User and Platform columns only (first two columns)
+            if (platformData.length > 0) {
+                const platformRange = XLSX.utils.decode_range(
+                    wsPlatform["!ref"],
+                );
+                // Apply filter only to first two columns (User and Platform)
+                wsPlatform["!autofilter"] = {
+                    ref: XLSX.utils.encode_range({
+                        s: { r: platformRange.s.r, c: 0 }, // Start at first column
+                        e: { r: platformRange.e.r, c: 1 }, // End at second column
+                    }),
+                };
+            }
+
+            // Set column widths for platform sheet
+            wsPlatform["!cols"] = [
+                { wch: 20 }, // User
+                { wch: 12 }, // Platform
+                { wch: 10 }, // Posts
+                { wch: 12 }, // Comments
+                { wch: 10 }, // Total
+            ];
+
+            // Style header for platform sheet
+            const platformHeaderRange = XLSX.utils.decode_range(
+                wsPlatform["!ref"],
+            );
+            for (
+                let C = platformHeaderRange.s.c;
+                C <= platformHeaderRange.e.c;
+                ++C
+            ) {
+                const cellAddress = XLSX.utils.encode_cell({
+                    r: platformHeaderRange.s.r,
+                    c: C,
+                });
+                if (!wsPlatform[cellAddress]) continue;
+                wsPlatform[cellAddress].s = {
+                    font: { bold: true, sz: 12 },
+                    fill: { fgColor: { rgb: "E8F4FD" } },
+                    alignment: { horizontal: "center" },
+                };
+            }
+
+            XLSX.utils.book_append_sheet(wb, wsPlatform, "Platform Data");
+
+            // Generate filename
+            const fileName = `tracker_export_${new Date().toISOString().slice(0, 19).replace(/:/g, "-")}.xlsx`;
+
+            // Save file
+            XLSX.writeFile(wb, fileName);
+
+            alert(
+                `Data exported successfully!\n\nSheets included:\n- User Summary (filter only on Username column)\n- Platform Data (filter only on User and Platform columns)\n\nTotal Users: ${uniqueUsers.length}\nTotal Posts: ${totalPosts}\nTotal Comments: ${totalComments}`,
+            );
+        } catch (err) {
+            console.error("Error downloading data:", err);
+            alert("Failed to download data: " + err.message);
+        } finally {
+            setIsDownloading(false);
+        }
     };
 
     return (
@@ -879,6 +1160,17 @@ const Dashboard = () => {
                     </div>
                     <span>{user?.name}</span>
                 </div>
+                <div className="download-menu">
+                    <button
+                        onClick={handleDownloadData}
+                        className="download-btn"
+                        disabled={isDownloading}
+                        title="Download as Excel"
+                    >
+                        <Download size={18} />
+                        {isDownloading ? "Downloading..." : "Export data"}
+                    </button>
+                </div>
                 <div className="menu-stats">
                     <div className="menu-stat">
                         <span>Posts</span>
@@ -897,6 +1189,7 @@ const Dashboard = () => {
                     <Clock size={16} />
                     <span>{formatDateTime(currentTime)}</span>
                 </div>
+
                 <button onClick={logout} className="menu-logout">
                     Logout
                 </button>
