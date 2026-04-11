@@ -405,7 +405,7 @@ const Payments = () => {
 
                     <button className="export-button" onClick={handleExport}>
                         <Download size={16} />
-                        <span className="export-text">Export Data</span>
+                        <span className="export-text">Downlode Data</span>
                     </button>
                 </div>
 
