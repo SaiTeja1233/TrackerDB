@@ -17,13 +17,15 @@ import {
     Activity,
     MessageCircle,
     ChevronUp,
+    DollarSign,
 } from "lucide-react";
 import NavBar from "./NavBar";
 import "./Dashboard.css";
 
 const Dashboard = () => {
     const { user, logout } = useAuth();
-    const { posts, comments, isLoading, lastUpdated, fetchData } = useData();
+    const { posts, comments, isLoading, lastUpdated, fetchData, handleExport } =
+        useData();
 
     const [postUrl, setPostUrl] = useState("");
     const [commentUrl, setCommentUrl] = useState("");
@@ -359,6 +361,7 @@ const Dashboard = () => {
                 onFilterClick={() => setIsFilterModalOpen(true)}
                 hasActiveFilters={hasActiveFilters}
                 onMenuClick={() => setIsMenuOpen(true)}
+                onExport={handleExport}
             />
 
             {/* Filter Modal */}
@@ -832,14 +835,14 @@ const Dashboard = () => {
                     </div>
                     <span>{user?.name}</span>
                 </div>
-
-                {/* Payment & Work Summary Link */}
+                {/* Payment Dashboard Link */}
                 <Link
                     to="/payments"
                     className="menu-payment-link"
                     onClick={() => setIsMenuOpen(false)}
                 >
-                    <span>Payment & Work Summary</span>
+                    <DollarSign size={18} />
+                    Payment & Work Summary
                 </Link>
 
                 <div className="menu-stats">
