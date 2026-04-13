@@ -401,7 +401,101 @@ body {
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
     border-color: #cbd5e1;
 }
+/* Woz code button - Mobile First CSS */
+.wozcode {
+    /* Container styles */
+    margin: 0;
+    padding: 0;
+}
 
+.wozcode button {
+    /* Base styles */
+    background: linear-gradient(135deg, #000000 0%, #263e26 100%);
+    border: none;
+    color: rgb(75, 255, 15);
+    font-weight: 900;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    
+    /* Mobile-specific sizing */
+    padding: 8px 16px;
+    font-size: 14px;
+    border-radius: 20px;
+    
+    /* Flex for better touch target */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    
+    /* Ensure good touch target size (minimum 44px) */
+    min-height: 44px;
+    min-width: 100px;
+}
+
+/* Mobile-specific hover effects (using active for touch feedback) */
+.wozcode button:active {
+    transform: scale(0.96);
+    background: linear-gradient(135deg, #000000 0%, #000000 100%);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* For very small screens (phones under 400px) */
+@media (max-width: 400px) {
+    .wozcode button {
+        padding: 6px 12px;
+        font-size: 12px;
+        min-width: 80px;
+        border-radius: 18px;
+    }
+}
+
+/* For tablets and larger phones (portrait) */
+@media (min-width: 401px) and (max-width: 768px) {
+    .wozcode button {
+        padding: 10px 20px;
+        font-size: 15px;
+        border-radius: 24px;
+        min-width: 110px;
+    }
+}
+
+
+
+.wozcode button:active::before {
+    transform: rotate(20deg);
+}
+
+/* For landscape mode on mobile */
+@media (max-width: 768px) and (orientation: landscape) {
+    .wozcode button {
+        padding: 6px 14px;
+        font-size: 13px;
+        min-height: 40px;
+    }
+}
+
+/* High contrast / accessibility for mobile */
+@media (prefers-contrast: high) {
+    .wozcode button {
+        background: #005fcc;
+        border: 2px solid white;
+    }
+    
+    .wozcode button:active {
+        background: #004099;
+    }
+}
+
+/* For users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    .wozcode button,
+    .wozcode button:active {
+        transition: none;
+        transform: none;
+    }
+}
 /* Card Info - Left Side */
 .card-info {
     display: flex;

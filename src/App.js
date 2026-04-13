@@ -9,6 +9,7 @@ import { DataProvider } from "./context/DataContext";
 import Auth from "./components/Auth/Auth";
 import Dashboard from "./components/Dashboard";
 import Payments from "./components/Payments"; // Create this component
+import Wozcode from "./components/Wozcode";
 
 // Protected route wrapper that includes DataProvider
 const ProtectedRoute = ({ children }) => {
@@ -35,6 +36,7 @@ const Main = () => {
                 path="/"
                 element={user ? <Navigate to="/dashboard" /> : <Auth />}
             />
+            <Route path="wozcode" element={<Wozcode />} />
 
             {/* Protected routes with DataProvider */}
             <Route

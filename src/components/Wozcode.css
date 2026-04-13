@@ -1,0 +1,538 @@
+/* Wozcode.css - Unique Class Names to Prevent Conflicts */
+.wozcode-page-title{
+   display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 30px 16px;
+    margin-bottom: 16px;
+    font-size: 25px;
+    background-color: #191b1b;
+    color: #93e849;
+    border-radius: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+.wozcode-page {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+    padding: 12px;
+    padding-bottom: 80px;
+}
+
+/* Header */
+.wozcode-page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.wozcode-back-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.2s;
+}
+
+.wozcode-page-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.wozcode-filter-btn,
+.wozcode-export-btn {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    padding: 6px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+/* Last Updated */
+.wozcode-last-updated {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 10px;
+    margin-bottom: 16px;
+    padding: 6px 10px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 6px;
+}
+
+/* Stats Cards */
+.wozcode-stats-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+.wozcode-stat-card {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-radius: 12px;
+    padding: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.wozcode-stat-icon {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    padding: 6px;
+    border-radius: 10px;
+    color: white;
+}
+
+.wozcode-stat-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.wozcode-stat-value {
+    font-size: 18px;
+    font-weight: 700;
+    color: white;
+    line-height: 1.2;
+}
+
+.wozcode-stat-label {
+    font-size: 9px;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+/* Active Filters */
+.wozcode-active-filters {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.wozcode-filter-tags {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.wozcode-filter-tag {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(102, 126, 234, 0.3);
+    color: white;
+    padding: 3px 8px;
+    border-radius: 16px;
+    font-size: 10px;
+}
+
+.wozcode-clear-filters {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    padding: 3px 10px;
+    border-radius: 16px;
+    font-size: 10px;
+    cursor: pointer;
+}
+
+/* View Toggle */
+.wozcode-view-toggle {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 4px;
+    border-radius: 10px;
+}
+
+.wozcode-view-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px;
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.7);
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.wozcode-view-btn.active {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+}
+
+.wozcode-count {
+    background: rgba(0, 0, 0, 0.2);
+    padding: 1px 6px;
+    border-radius: 10px;
+    font-size: 10px;
+}
+
+.wozcode-view-btn.active .wozcode-count {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* Content Area */
+.wozcode-content-area {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    padding: 12px;
+    backdrop-filter: blur(10px);
+}
+
+.wozcode-view-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.wozcode-view-header h3 {
+    color: white;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+}
+
+.wozcode-today-badge {
+    background: #10b981;
+    color: white;
+    font-size: 8px;
+    padding: 1px 6px;
+    border-radius: 10px;
+    margin-left: 6px;
+}
+
+.wozcode-add-btn {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    border: none;
+    color: white;
+    padding: 6px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Add Form */
+.wozcode-add-form {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 12px;
+    border-radius: 10px;
+    margin-bottom: 16px;
+}
+
+.wozcode-add-form input {
+    width: 100%;
+    padding: 8px 10px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    color: white;
+    font-size: 12px;
+    margin-bottom: 10px;
+}
+
+.wozcode-form-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.wozcode-submit-btn,
+.wozcode-cancel-btn {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 11px;
+}
+
+.wozcode-submit-btn {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+}
+
+.wozcode-cancel-btn {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+/* Cards */
+.wozcode-cards-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.wozcode-card {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    padding: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    gap: 8px;
+}
+
+.wozcode-card.today {
+    border-left: 3px solid #10b981;
+    background: rgba(16, 185, 129, 0.1);
+}
+
+.wozcode-card-info {
+    flex: 1;
+}
+
+.wozcode-card-user {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+    flex-wrap: wrap;
+}
+
+.wozcode-username {
+    color: white;
+    font-weight: 600;
+    font-size: 11px;
+}
+
+.wozcode-platform-badge {
+    font-size: 8px;
+    padding: 1px 6px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+}
+
+.wozcode-card-time {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 9px;
+}
+
+.wozcode-today-tag {
+    background: #10b981;
+    padding: 1px 4px;
+    border-radius: 8px;
+    font-size: 7px;
+}
+
+.wozcode-card-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.wozcode-visit-btn {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    border: none;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 10px;
+}
+
+.wozcode-delete-btn {
+    background: rgba(239, 68, 68, 0.2);
+    border: none;
+    color: #ef4444;
+    padding: 4px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+/* Empty State */
+.wozcode-empty-state {
+    text-align: center;
+    padding: 40px 16px;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.wozcode-empty-state p {
+    font-size: 12px;
+    margin: 12px 0;
+}
+
+.wozcode-empty-state button {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    border: none;
+    color: white;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 11px;
+}
+
+/* Back to Top */
+.wozcode-back-to-top {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    border: none;
+    color: white;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    z-index: 100;
+}
+
+/* Modal */
+.wozcode-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.wozcode-filter-modal {
+    background: #1a1a2e;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 350px;
+    padding: 16px;
+}
+
+.wozcode-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    color: white;
+}
+
+.wozcode-modal-header h3 {
+    font-size: 16px;
+    margin: 0;
+}
+
+.wozcode-close-modal {
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+}
+
+.wozcode-modal-body {
+    margin-bottom: 16px;
+}
+
+.wozcode-filter-group {
+    margin-bottom: 12px;
+}
+
+.wozcode-filter-group label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: white;
+    margin-bottom: 6px;
+    font-size: 11px;
+}
+
+.wozcode-filter-group select,
+.wozcode-filter-group input {
+    width: 100%;
+    padding: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    color: white;
+    font-size: 12px;
+}
+
+.wozcode-modal-footer {
+    display: flex;
+    gap: 8px;
+}
+
+.wozcode-reset-btn,
+.wozcode-apply-btn {
+    flex: 1;
+    padding: 8px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 12px;
+}
+
+.wozcode-reset-btn {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+.wozcode-apply-btn {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+}
+
+/* Mobile Responsive */
+@media (max-width: 380px) {
+    .wozcode-page {
+        padding: 8px;
+    }
+    
+    .wozcode-stat-value {
+        font-size: 16px;
+    }
+    
+    .wozcode-card {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .wozcode-card-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+}

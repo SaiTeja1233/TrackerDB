@@ -1,9 +1,8 @@
-// Dashboard.jsx
+// Wozcode.jsx
 import React, { useState, useEffect, useMemo } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { databases, ID } from "../appwrite"; // Keep this import for create/delete operations
+import { useNavigate } from "react-router-dom";
+import { databases, ID } from "../appwrite";
 import { useAuth } from "../context/AuthContext";
-import { useData } from "../context/DataContext";
 import {
     User,
     Link as LinkIcon,
@@ -12,34 +11,31 @@ import {
     Clock,
     Calendar,
     X,
-    Facebook,
-    MessageSquare,
-    Activity,
     MessageCircle,
+    Activity,
     ChevronUp,
-    DollarSign,
+    Code,
+    Zap,
+    ArrowLeft,
 } from "lucide-react";
-import NavBar from "./NavBar";
-import "./Dashboard.css";
+import "./Wozcode.css";
 
-const Dashboard = () => {
-    const { user, logout } = useAuth();
-    const { posts, comments, isLoading, lastUpdated, fetchData, handleExport } =
-        useData();
+const Wozcode = () => {
+    const { user } = useAuth();
+    const navigate = useNavigate();
 
     const [postUrl, setPostUrl] = useState("");
     const [commentUrl, setCommentUrl] = useState("");
-    const [isMenuOpen, setIsMenuOpen] = useState(false);
-    const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
-    const [visitedLinks, setVisitedLinks] = useState([]);
-    const [currentTime, setCurrentTime] = useState(new Date());
-    const [showBackToTop, setShowBackToTop] = useState(false);
-
+    const [wozcodePosts, setWozcodePosts] = useState([]);
+    const [wozcodeComments, setWozcodeComments] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [activeView, setActiveView] = useState("posts");
     const [showPostInput, setShowPostInput] = useState(false);
     const [showCommentInput, setShowCommentInput] = useState(false);
-    const [activeView, setActiveView] = useState("posts");
-
-    const [platform, setPlatform] = useState("reddit");
+    const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+    const [showBackToTop, setShowBackToTop] = useState(false);
+    const [currentTime, setCurrentTime] = useState(new Date());
+    const [visitedLinks, setVisitedLinks] = useState([]);
 
     // Filter States
     const [tempUser, setTempUser] = useState("All Users");
@@ -47,14 +43,11 @@ const Dashboard = () => {
     const [appliedUser, setAppliedUser] = useState("All Users");
     const [appliedDate, setAppliedDate] = useState("");
 
+    // Database configuration
     const DB_ID = "699d8e26001498ef3487";
-    const POST_COLLECTION = "posts";
-    const COMMENT_COLLECTION = "comments";
-    const navigate = useNavigate();
+    const WOZCODE_POST_COLLECTION = "wozcode_posts";
+    const WOZCODE_COMMENT_COLLECTION = "wozcode_comments";
 
-    const navigateToWozcode = () => {
-        navigate("/wozcode");
-    };
     // Update current time every second
     useEffect(() => {
         const timer = setInterval(() => {
@@ -63,57 +56,64 @@ const Dashboard = () => {
         return () => clearInterval(timer);
     }, []);
 
-    // Add scroll listener for back to top button
+    // Scroll listener for back to top button
     useEffect(() => {
         const handleScroll = () => {
             setShowBackToTop(window.scrollY > 400);
         };
-
         window.addEventListener("scroll", handleScroll);
         return () => window.removeEventListener("scroll", handleScroll);
     }, []);
 
+    // Load visited links from localStorage
     useEffect(() => {
-        const saved = localStorage.getItem("visitedLinks");
+        const saved = localStorage.getItem("wozcodeVisitedLinks");
         if (saved) setVisitedLinks(JSON.parse(saved));
+    }, []);
+
+    // Fetch Wozcode data
+    const fetchWozcodeData = async () => {
+        setIsLoading(true);
+        try {
+            // Fetch posts
+            const postsResponse = await databases.listDocuments(
+                DB_ID,
+                WOZCODE_POST_COLLECTION,
+            );
+            setWozcodePosts(postsResponse.documents);
+
+            // Fetch comments
+            const commentsResponse = await databases.listDocuments(
+                DB_ID,
+                WOZCODE_COMMENT_COLLECTION,
+            );
+            setWozcodeComments(commentsResponse.documents);
+        } catch (err) {
+            console.error("Error fetching Wozcode data:", err);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchWozcodeData();
     }, []);
 
     const parseDate = (dateString) => {
         if (!dateString) return new Date(0);
         let date = new Date(dateString);
         if (isNaN(date.getTime())) {
-            // Match format: MM/DD/YYYY, HH:MM:SS AM/PM
             const match = dateString.match(
-                /(\d{1,2})\/(\d{1,2})\/(\d{4}),?\s*(\d{1,2}):(\d{2}):(\d{2})\s*(AM|PM)?/i,
+                /(\d{4})-(\d{2})-(\d{2}),?\s*(\d{1,2}):(\d{2}):(\d{2})\s*(AM|PM)?/i,
             );
             if (match) {
-                const month = parseInt(match[1]);
-                const day = parseInt(match[2]);
-                const year = parseInt(match[3]);
+                const year = parseInt(match[1]);
+                const month = parseInt(match[2]);
+                const day = parseInt(match[3]);
                 let hours = parseInt(match[4]);
                 const minutes = parseInt(match[5]);
                 const seconds = parseInt(match[6]);
                 const ampm = match[7];
-
-                if (ampm) {
-                    if (ampm.toUpperCase() === "PM" && hours < 12) hours += 12;
-                    if (ampm.toUpperCase() === "AM" && hours === 12) hours = 0;
-                }
-                return new Date(year, month - 1, day, hours, minutes, seconds);
-            }
-
-            // Match format: YYYY-MM-DD, HH:MM:SS AM/PM
-            const match2 = dateString.match(
-                /(\d{4})-(\d{2})-(\d{2}),?\s*(\d{1,2}):(\d{2}):(\d{2})\s*(AM|PM)?/i,
-            );
-            if (match2) {
-                const year = parseInt(match2[1]);
-                const month = parseInt(match2[2]);
-                const day = parseInt(match2[3]);
-                let hours = parseInt(match2[4]);
-                const minutes = parseInt(match2[5]);
-                const seconds = parseInt(match2[6]);
-                const ampm = match2[7];
 
                 if (ampm) {
                     if (ampm.toUpperCase() === "PM" && hours < 12) hours += 12;
@@ -137,22 +137,14 @@ const Dashboard = () => {
         });
     };
 
-    const getGreeting = () => {
-        const hour = currentTime.getHours();
-        if (hour >= 0 && hour < 12) return "Good Morning";
-        if (hour >= 12 && hour < 17) return "Good Afternoon";
-        if (hour >= 17 && hour < 21) return "Good Evening";
-        return "Good Night";
-    };
-
     const uniqueUsernames = useMemo(() => {
-        const allItems = [...posts, ...comments];
+        const allItems = [...wozcodePosts, ...wozcodeComments];
         const names = allItems.map((item) => item.username).filter(Boolean);
         return ["All Users", ...new Set(names)];
-    }, [posts, comments]);
+    }, [wozcodePosts, wozcodeComments]);
 
     const filteredPosts = useMemo(() => {
-        return posts
+        return wozcodePosts
             .filter((item) => {
                 const matchesUser =
                     appliedUser === "All Users" ||
@@ -164,19 +156,17 @@ const Dashboard = () => {
                     matchesDate =
                         itemDate.toDateString() === filterDate.toDateString();
                 }
-                const itemPlatform = item.platform || "reddit";
-                const matchesPlatform = itemPlatform === platform;
-                return matchesUser && matchesDate && matchesPlatform;
+                return matchesUser && matchesDate;
             })
             .sort((a, b) => {
                 const dateA = parseDate(a.createdAt || a.$createdAt);
                 const dateB = parseDate(b.createdAt || b.$createdAt);
                 return dateB - dateA;
             });
-    }, [posts, appliedUser, appliedDate, platform]);
+    }, [wozcodePosts, appliedUser, appliedDate]);
 
     const filteredComments = useMemo(() => {
-        return comments
+        return wozcodeComments
             .filter((item) => {
                 const matchesUser =
                     appliedUser === "All Users" ||
@@ -188,16 +178,14 @@ const Dashboard = () => {
                     matchesDate =
                         itemDate.toDateString() === filterDate.toDateString();
                 }
-                const itemPlatform = item.platform || "reddit";
-                const matchesPlatform = itemPlatform === platform;
-                return matchesUser && matchesDate && matchesPlatform;
+                return matchesUser && matchesDate;
             })
             .sort((a, b) => {
                 const dateA = parseDate(a.createdAt || a.$createdAt);
                 const dateB = parseDate(b.createdAt || b.$createdAt);
                 return dateB - dateA;
             });
-    }, [comments, appliedUser, appliedDate, platform]);
+    }, [wozcodeComments, appliedUser, appliedDate]);
 
     const today = new Date();
     const todaysPosts = filteredPosts.filter((item) => {
@@ -210,17 +198,13 @@ const Dashboard = () => {
         return itemDate.toDateString() === today.toDateString();
     });
 
-    const stats = useMemo(() => {
-        const totalPosts = posts.length;
-        const totalComments = comments.length;
-        return {
-            totalPosts,
-            totalComments,
-            todaysPosts: todaysPosts.length,
-            todaysComments: todaysComments.length,
-            totalTodays: todaysPosts.length + todaysComments.length,
-        };
-    }, [posts, comments, todaysPosts, todaysComments]);
+    const stats = {
+        totalPosts: wozcodePosts.length,
+        totalComments: wozcodeComments.length,
+        todaysPosts: todaysPosts.length,
+        todaysComments: todaysComments.length,
+        totalTodays: todaysPosts.length + todaysComments.length,
+    };
 
     const handleApplyFilters = () => {
         setAppliedUser(tempUser);
@@ -240,7 +224,10 @@ const Dashboard = () => {
         if (!visitedLinks.includes(id)) {
             const updated = [...visitedLinks, id];
             setVisitedLinks(updated);
-            localStorage.setItem("visitedLinks", JSON.stringify(updated));
+            localStorage.setItem(
+                "wozcodeVisitedLinks",
+                JSON.stringify(updated),
+            );
         }
         window.open(url, "_blank");
     };
@@ -249,7 +236,9 @@ const Dashboard = () => {
         e.preventDefault();
         const url = type === "post" ? postUrl : commentUrl;
         const collection =
-            type === "post" ? POST_COLLECTION : COMMENT_COLLECTION;
+            type === "post"
+                ? WOZCODE_POST_COLLECTION
+                : WOZCODE_COMMENT_COLLECTION;
 
         if (!url) {
             alert("Please enter a URL");
@@ -265,9 +254,7 @@ const Dashboard = () => {
         }
 
         try {
-            // Use the current time from dashboard state (live updating)
             const now = currentTime;
-
             const year = now.getFullYear();
             const month = String(now.getMonth() + 1).padStart(2, "0");
             const day = String(now.getDate()).padStart(2, "0");
@@ -280,16 +267,13 @@ const Dashboard = () => {
             hours = hours % 12;
             hours = hours ? hours : 12;
             const timeString = `${hours}:${minutes}:${seconds} ${ampm}`;
-
             const fullDate = `${dateString}, ${timeString}`;
-
-            console.log("Saving with date/time:", fullDate); // Debug log
 
             const documentData = {
                 url: url,
                 username: user?.name,
                 createdAt: fullDate,
-                platform: platform,
+                platform: "wozcode",
             };
 
             await databases.createDocument(
@@ -308,13 +292,12 @@ const Dashboard = () => {
                 setShowCommentInput(false);
             }
 
-            // Show success message
             alert(
                 `${type === "post" ? "Post" : "Comment"} added successfully at ${fullDate}`,
             );
 
-            // Refresh data using the context's fetchData
-            await fetchData();
+            // Refresh data
+            await fetchWozcodeData();
 
             // Switch to appropriate view
             if (type === "post") {
@@ -332,7 +315,7 @@ const Dashboard = () => {
         if (!window.confirm("Delete this link?")) return;
         try {
             await databases.deleteDocument(DB_ID, collection, docId);
-            await fetchData(); // Refresh data after deletion
+            await fetchWozcodeData();
         } catch (err) {
             console.error("Delete failed:", err);
             alert("Delete failed: " + err.message);
@@ -340,48 +323,83 @@ const Dashboard = () => {
     };
 
     const scrollToTop = () => {
-        window.scrollTo({
-            top: 0,
-            behavior: "smooth",
+        window.scrollTo({ top: 0, behavior: "smooth" });
+    };
+
+    const handleExport = () => {
+        const data = {
+            posts: wozcodePosts,
+            comments: wozcodeComments,
+            exportedAt: new Date().toISOString(),
+        };
+        const blob = new Blob([JSON.stringify(data, null, 2)], {
+            type: "application/json",
         });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `wozcode-data-${new Date().toISOString().split("T")[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
     };
 
     const hasActiveFilters = appliedUser !== "All Users" || appliedDate;
 
     return (
-        <div className="dashboard-container">
-            <NavBar
-                onRefresh={fetchData}
-                isLoading={isLoading}
-                onFilterClick={() => setIsFilterModalOpen(true)}
-                hasActiveFilters={hasActiveFilters}
-                onMenuClick={() => setIsMenuOpen(true)}
-                onExport={handleExport}
-            />
+        <div className="wozcode-page">
+            {/* Back Arrow and Header */}
+            <div className="wozcode-page-header">
+                <button
+                    className="wozcode-back-btn"
+                    onClick={() => navigate("/dashboard")}
+                >
+                    <ArrowLeft size={20} />
+                    <span>Back to Dashboard</span>
+                </button>
+                <div className="wozcode-page-actions">
+                    <button
+                        className="wozcode-filter-btn"
+                        onClick={() => setIsFilterModalOpen(true)}
+                    >
+                        <Calendar size={16} />
+                    </button>
+                    <button
+                        className="wozcode-export-btn"
+                        onClick={handleExport}
+                    >
+                        Export
+                    </button>
+                </div>
+            </div>
+            <div className="wozcode-page-title">
+                <h2>Wozcode</h2>
+            </div>
 
             {/* Filter Modal */}
             {isFilterModalOpen && (
                 <div
-                    className="modal-overlay"
+                    className="wozcode-modal-overlay"
                     onClick={() => setIsFilterModalOpen(false)}
                 >
                     <div
-                        className="filter-modal"
+                        className="wozcode-filter-modal"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        <div className="modal-header">
+                        <div className="wozcode-modal-header">
                             <h3>Filter Records</h3>
                             <button
-                                className="close-modal"
+                                className="wozcode-close-modal"
                                 onClick={() => setIsFilterModalOpen(false)}
                             >
-                                <X size={20} />
+                                <X size={18} />
                             </button>
                         </div>
-                        <div className="modal-body">
-                            <div className="filter-group">
+                        <div className="wozcode-modal-body">
+                            <div className="wozcode-filter-group">
                                 <label>
-                                    <User size={14} /> USER
+                                    <User size={12} /> USER
                                 </label>
                                 <select
                                     value={tempUser}
@@ -396,9 +414,9 @@ const Dashboard = () => {
                                     ))}
                                 </select>
                             </div>
-                            <div className="filter-group">
+                            <div className="wozcode-filter-group">
                                 <label>
-                                    <Calendar size={14} /> DATE
+                                    <Calendar size={12} /> DATE
                                 </label>
                                 <input
                                     type="date"
@@ -409,15 +427,15 @@ const Dashboard = () => {
                                 />
                             </div>
                         </div>
-                        <div className="modal-footer">
+                        <div className="wozcode-modal-footer">
                             <button
-                                className="reset-btn"
+                                className="wozcode-reset-btn"
                                 onClick={handleResetFilters}
                             >
                                 Reset
                             </button>
                             <button
-                                className="apply-btn"
+                                className="wozcode-apply-btn"
                                 onClick={handleApplyFilters}
                             >
                                 Apply
@@ -427,51 +445,39 @@ const Dashboard = () => {
                 </div>
             )}
 
-            {/* Current Time Card */}
-            <div className="time-card">
-                <div className="greeting">
-                    {getGreeting()}, {user?.name}!
-                </div>
-                <div className="wozcode">
-                    <button onClick={navigateToWozcode} className="wozcode-btn">
-                        Woz Code
-                    </button>
-                </div>
-            </div>
-
             {/* Last Updated */}
-            {lastUpdated && (
-                <div className="last-updated">
-                    <Activity size={12} />
-                    <span>Last synced {formatDateTime(lastUpdated)}</span>
+            {!isLoading && (
+                <div className="wozcode-last-updated">
+                    <Activity size={10} />
+                    <span>Last synced {formatDateTime(new Date())}</span>
                 </div>
             )}
 
             {/* Active Filters */}
             {hasActiveFilters && (
-                <div className="active-filters">
-                    <div className="filter-tags">
+                <div className="wozcode-active-filters">
+                    <div className="wozcode-filter-tags">
                         {appliedUser !== "All Users" && (
-                            <span className="filter-tag">
+                            <span className="wozcode-filter-tag">
                                 {appliedUser}
                                 <X
-                                    size={12}
+                                    size={10}
                                     onClick={() => setAppliedUser("All Users")}
                                 />
                             </span>
                         )}
                         {appliedDate && (
-                            <span className="filter-tag">
+                            <span className="wozcode-filter-tag">
                                 {appliedDate}
                                 <X
-                                    size={12}
+                                    size={10}
                                     onClick={() => setAppliedDate("")}
                                 />
                             </span>
                         )}
                     </div>
                     <button
-                        className="clear-filters"
+                        className="wozcode-clear-filters"
                         onClick={handleResetFilters}
                     >
                         Clear
@@ -479,71 +485,116 @@ const Dashboard = () => {
                 </div>
             )}
 
+            {/* Stats Cards */}
+            <div className="wozcode-stats-cards">
+                <div className="wozcode-stat-card">
+                    <div className="wozcode-stat-icon">
+                        <LinkIcon size={18} />
+                    </div>
+                    <div className="wozcode-stat-info">
+                        <span className="wozcode-stat-value">
+                            {stats.totalPosts}
+                        </span>
+                        <span className="wozcode-stat-label">Total Posts</span>
+                    </div>
+                </div>
+                <div className="wozcode-stat-card">
+                    <div className="wozcode-stat-icon">
+                        <MessageCircle size={18} />
+                    </div>
+                    <div className="wozcode-stat-info">
+                        <span className="wozcode-stat-value">
+                            {stats.totalComments}
+                        </span>
+                        <span className="wozcode-stat-label">
+                            Total Comments
+                        </span>
+                    </div>
+                </div>
+                <div className="wozcode-stat-card">
+                    <div className="wozcode-stat-icon">
+                        <Zap size={18} />
+                    </div>
+                    <div className="wozcode-stat-info">
+                        <span className="wozcode-stat-value">
+                            {stats.totalTodays}
+                        </span>
+                        <span className="wozcode-stat-label">
+                            Today's Activity
+                        </span>
+                    </div>
+                </div>
+            </div>
+
             {/* View Toggle */}
-            <div className="view-toggle-container">
+            <div className="wozcode-view-toggle">
                 <button
-                    className={`view-toggle-btn ${activeView === "posts" ? "active" : ""}`}
+                    className={`wozcode-view-btn ${activeView === "posts" ? "active" : ""}`}
                     onClick={() => setActiveView("posts")}
                 >
-                    <LinkIcon size={18} />
+                    <LinkIcon size={14} />
                     <span>Posts</span>
-                    <span className="count">{filteredPosts.length}</span>
+                    <span className="wozcode-count">
+                        {filteredPosts.length}
+                    </span>
                 </button>
                 <button
-                    className={`view-toggle-btn ${activeView === "comments" ? "active" : ""}`}
+                    className={`wozcode-view-btn ${activeView === "comments" ? "active" : ""}`}
                     onClick={() => setActiveView("comments")}
                 >
-                    <MessageCircle size={18} />
+                    <MessageCircle size={14} />
                     <span>Comments</span>
-                    <span className="count">{filteredComments.length}</span>
+                    <span className="wozcode-count">
+                        {filteredComments.length}
+                    </span>
                 </button>
             </div>
 
             {/* Content Area */}
-            <div className="content-area">
+            <div className="wozcode-content-area">
                 {/* Posts View */}
                 {activeView === "posts" && (
-                    <div className="view-content">
-                        <div className="view-header">
+                    <div className="wozcode-view-content">
+                        <div className="wozcode-view-header">
                             <h3>
-                                <LinkIcon size={20} /> Posts
+                                <LinkIcon size={14} /> Posts
                                 {stats.todaysPosts > 0 && (
-                                    <span className="today-badge">
+                                    <span className="wozcode-today-badge">
                                         +{stats.todaysPosts} today
                                     </span>
                                 )}
                             </h3>
                             <button
-                                className="add-btn"
+                                className="wozcode-add-btn"
                                 onClick={() => setShowPostInput(true)}
                             >
-                                <Plus size={18} />
+                                <Plus size={14} />
                             </button>
                         </div>
 
                         {showPostInput && (
                             <form
                                 onSubmit={(e) => handleAddTracker(e, "post")}
-                                className="add-form"
+                                className="wozcode-add-form"
                             >
                                 <input
                                     type="url"
-                                    placeholder="Paste URL (include http:// or https://)"
+                                    placeholder="Paste WOZCODE post URL (include http:// or https://)"
                                     value={postUrl}
                                     onChange={(e) => setPostUrl(e.target.value)}
                                     required
                                     autoFocus
                                 />
-                                <div className="form-actions">
+                                <div className="wozcode-form-actions">
                                     <button
                                         type="submit"
-                                        className="submit-btn"
+                                        className="wozcode-submit-btn"
                                     >
                                         Add Post
                                     </button>
                                     <button
                                         type="button"
-                                        className="cancel-btn"
+                                        className="wozcode-cancel-btn"
                                         onClick={() => setShowPostInput(false)}
                                     >
                                         Cancel
@@ -552,10 +603,10 @@ const Dashboard = () => {
                             </form>
                         )}
 
-                        <div className="cards-list">
+                        <div className="wozcode-cards-list">
                             {filteredPosts.length === 0 ? (
-                                <div className="empty-state">
-                                    <LinkIcon size={48} />
+                                <div className="wozcode-empty-state">
+                                    <Code size={40} />
                                     <p>No posts yet</p>
                                     <button
                                         onClick={() => setShowPostInput(true)}
@@ -574,40 +625,33 @@ const Dashboard = () => {
                                     return (
                                         <div
                                             key={item.$id}
-                                            className={`card ${isToday ? "today" : ""}`}
+                                            className={`wozcode-card ${isToday ? "today" : ""}`}
                                         >
-                                            <div className="card-info">
-                                                <div className="card-user">
-                                                    <User size={14} />
-                                                    <span className="username">
+                                            <div className="wozcode-card-info">
+                                                <div className="wozcode-card-user">
+                                                    <User size={12} />
+                                                    <span className="wozcode-username">
                                                         {item.username}
                                                     </span>
-                                                    <span
-                                                        className="platform-badge"
-                                                        data-platform={
-                                                            item.platform ||
-                                                            "reddit"
-                                                        }
-                                                    >
-                                                        {item.platform ||
-                                                            "reddit"}
+                                                    <span className="wozcode-platform-badge">
+                                                        WOZCODE
                                                     </span>
                                                 </div>
-                                                <div className="card-time">
-                                                    <Clock size={12} />
+                                                <div className="wozcode-card-time">
+                                                    <Clock size={10} />
                                                     <span>
                                                         {formatDateTime(
                                                             itemDate,
                                                         )}
                                                     </span>
                                                     {isToday && (
-                                                        <span className="today-tag">
+                                                        <span className="wozcode-today-tag">
                                                             Today
                                                         </span>
                                                     )}
                                                 </div>
                                             </div>
-                                            <div className="card-actions">
+                                            <div className="wozcode-card-actions">
                                                 <button
                                                     onClick={() =>
                                                         handleVisit(
@@ -615,7 +659,7 @@ const Dashboard = () => {
                                                             item.url,
                                                         )
                                                     }
-                                                    className="visit-btn"
+                                                    className="wozcode-visit-btn"
                                                 >
                                                     Open
                                                 </button>
@@ -625,12 +669,12 @@ const Dashboard = () => {
                                                         onClick={() =>
                                                             handleDelete(
                                                                 item.$id,
-                                                                POST_COLLECTION,
+                                                                WOZCODE_POST_COLLECTION,
                                                             )
                                                         }
-                                                        className="delete-btn"
+                                                        className="wozcode-delete-btn"
                                                     >
-                                                        <Trash2 size={16} />
+                                                        <Trash2 size={12} />
                                                     </button>
                                                 )}
                                             </div>
@@ -644,32 +688,32 @@ const Dashboard = () => {
 
                 {/* Comments View */}
                 {activeView === "comments" && (
-                    <div className="view-content">
-                        <div className="view-header">
+                    <div className="wozcode-view-content">
+                        <div className="wozcode-view-header">
                             <h3>
-                                <MessageCircle size={20} /> Comments
+                                <MessageCircle size={14} /> Comments
                                 {stats.todaysComments > 0 && (
-                                    <span className="today-badge">
+                                    <span className="wozcode-today-badge">
                                         +{stats.todaysComments} today
                                     </span>
                                 )}
                             </h3>
                             <button
-                                className="add-btn"
+                                className="wozcode-add-btn"
                                 onClick={() => setShowCommentInput(true)}
                             >
-                                <Plus size={18} />
+                                <Plus size={14} />
                             </button>
                         </div>
 
                         {showCommentInput && (
                             <form
                                 onSubmit={(e) => handleAddTracker(e, "comment")}
-                                className="add-form"
+                                className="wozcode-add-form"
                             >
                                 <input
                                     type="url"
-                                    placeholder="Paste URL (include http:// or https://)"
+                                    placeholder="Paste WOZCODE comment URL (include http:// or https://)"
                                     value={commentUrl}
                                     onChange={(e) =>
                                         setCommentUrl(e.target.value)
@@ -677,16 +721,16 @@ const Dashboard = () => {
                                     required
                                     autoFocus
                                 />
-                                <div className="form-actions">
+                                <div className="wozcode-form-actions">
                                     <button
                                         type="submit"
-                                        className="submit-btn"
+                                        className="wozcode-submit-btn"
                                     >
                                         Add Comment
                                     </button>
                                     <button
                                         type="button"
-                                        className="cancel-btn"
+                                        className="wozcode-cancel-btn"
                                         onClick={() =>
                                             setShowCommentInput(false)
                                         }
@@ -697,10 +741,10 @@ const Dashboard = () => {
                             </form>
                         )}
 
-                        <div className="cards-list">
+                        <div className="wozcode-cards-list">
                             {filteredComments.length === 0 ? (
-                                <div className="empty-state">
-                                    <MessageCircle size={48} />
+                                <div className="wozcode-empty-state">
+                                    <MessageCircle size={40} />
                                     <p>No comments yet</p>
                                     <button
                                         onClick={() =>
@@ -721,40 +765,33 @@ const Dashboard = () => {
                                     return (
                                         <div
                                             key={item.$id}
-                                            className={`card ${isToday ? "today" : ""}`}
+                                            className={`wozcode-card ${isToday ? "today" : ""}`}
                                         >
-                                            <div className="card-info">
-                                                <div className="card-user">
-                                                    <User size={14} />
-                                                    <span className="username">
+                                            <div className="wozcode-card-info">
+                                                <div className="wozcode-card-user">
+                                                    <User size={12} />
+                                                    <span className="wozcode-username">
                                                         {item.username}
                                                     </span>
-                                                    <span
-                                                        className="platform-badge"
-                                                        data-platform={
-                                                            item.platform ||
-                                                            "reddit"
-                                                        }
-                                                    >
-                                                        {item.platform ||
-                                                            "reddit"}
+                                                    <span className="wozcode-platform-badge">
+                                                        WOZCODE
                                                     </span>
                                                 </div>
-                                                <div className="card-time">
-                                                    <Clock size={12} />
+                                                <div className="wozcode-card-time">
+                                                    <Clock size={10} />
                                                     <span>
                                                         {formatDateTime(
                                                             itemDate,
                                                         )}
                                                     </span>
                                                     {isToday && (
-                                                        <span className="today-tag">
+                                                        <span className="wozcode-today-tag">
                                                             Today
                                                         </span>
                                                     )}
                                                 </div>
                                             </div>
-                                            <div className="card-actions">
+                                            <div className="wozcode-card-actions">
                                                 <button
                                                     onClick={() =>
                                                         handleVisit(
@@ -762,7 +799,7 @@ const Dashboard = () => {
                                                             item.url,
                                                         )
                                                     }
-                                                    className="visit-btn"
+                                                    className="wozcode-visit-btn"
                                                 >
                                                     Open
                                                 </button>
@@ -772,12 +809,12 @@ const Dashboard = () => {
                                                         onClick={() =>
                                                             handleDelete(
                                                                 item.$id,
-                                                                COMMENT_COLLECTION,
+                                                                WOZCODE_COMMENT_COLLECTION,
                                                             )
                                                         }
-                                                        className="delete-btn"
+                                                        className="wozcode-delete-btn"
                                                     >
-                                                        <Trash2 size={16} />
+                                                        <Trash2 size={12} />
                                                     </button>
                                                 )}
                                             </div>
@@ -790,89 +827,14 @@ const Dashboard = () => {
                 )}
             </div>
 
-            {/* Platform Toggle */}
-            <div className="platform-toggle-container">
-                <button
-                    className={`platform-btn ${platform === "reddit" ? "active" : ""}`}
-                    onClick={() => setPlatform("reddit")}
-                >
-                    <MessageSquare size={16} /> Reddit
-                </button>
-                <button
-                    className={`platform-btn ${platform === "facebook" ? "active" : ""}`}
-                    onClick={() => setPlatform("facebook")}
-                >
-                    <Facebook size={16} /> Facebook
-                </button>
-            </div>
-
             {/* Back to Top Button */}
             {showBackToTop && (
-                <button
-                    className="back-to-top"
-                    onClick={scrollToTop}
-                    aria-label="Back to top"
-                >
-                    <ChevronUp size={24} />
+                <button className="wozcode-back-to-top" onClick={scrollToTop}>
+                    <ChevronUp size={20} />
                 </button>
-            )}
-
-            {/* Mobile Menu */}
-            <div className={`mobile-menu ${isMenuOpen ? "open" : ""}`}>
-                <div className="menu-header">
-                    <h3>Menu</h3>
-                    <button onClick={() => setIsMenuOpen(false)}>
-                        <X size={24} />
-                    </button>
-                </div>
-                <div className="menu-user">
-                    <div className="avatar">
-                        <User size={32} />
-                    </div>
-                    <span>{user?.name}</span>
-                </div>
-                {/* Payment Dashboard Link */}
-                <Link
-                    to="/payments"
-                    className="menu-payment-link"
-                    onClick={() => setIsMenuOpen(false)}
-                >
-                    <DollarSign size={18} />
-                    Payment & Work Summary
-                </Link>
-
-                <div className="menu-stats">
-                    <div className="menu-stat">
-                        <span>Posts</span>
-                        <strong>{stats.totalPosts}</strong>
-                    </div>
-                    <div className="menu-stat">
-                        <span>Comments</span>
-                        <strong>{stats.totalComments}</strong>
-                    </div>
-                    <div className="menu-stat">
-                        <span>Today</span>
-                        <strong>{stats.totalTodays}</strong>
-                    </div>
-                </div>
-                <div className="menu-time">
-                    <Clock size={16} />
-                    <span>{formatDateTime(currentTime)}</span>
-                </div>
-
-                <button onClick={logout} className="menu-logout">
-                    Logout
-                </button>
-            </div>
-
-            {isMenuOpen && (
-                <div
-                    className="overlay"
-                    onClick={() => setIsMenuOpen(false)}
-                ></div>
             )}
         </div>
     );
 };
 
-export default Dashboard;
+export default Wozcode;
