@@ -479,15 +479,61 @@
     font-size: 11px;
 }
 
+/* FIXED: Dropdown styles for better visibility */
 .wozcode-filter-group select,
 .wozcode-filter-group input {
     width: 100%;
     padding: 8px;
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(30, 30, 46, 0.9);
     border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: 6px;
-    color: white;
+    color: #ffffff !important;
     font-size: 12px;
+    cursor: pointer;
+}
+
+/* Fix for dropdown options text color */
+.wozcode-filter-group select option {
+    background-color: #1a1a2e !important;
+    color: #ffffff !important;
+    padding: 8px !important;
+}
+
+/* Fix for dropdown when opened */
+.wozcode-filter-group select:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+/* For the select dropdown to have proper contrast */
+.wozcode-filter-group select optgroup,
+.wozcode-filter-group select option {
+    background-color: #1e1e32;
+    color: #ffffff;
+}
+
+/* Hover effect for options */
+.wozcode-filter-group select option:hover {
+    background-color: #667eea !important;
+    color: white !important;
+}
+
+/* Style for the select when it has a value selected */
+.wozcode-filter-group select:valid {
+    color: #ffffff;
+}
+
+/* For webkit browsers (Chrome, Safari) - dropdown list styling */
+.wozcode-filter-group select::-webkit-listbox,
+.wozcode-filter-group select::-webkit-listbox option {
+    background-color: #1a1a2e;
+    color: #ffffff;
+}
+
+/* For Firefox */
+.wozcode-filter-group select:-moz-focusring {
+    color: transparent;
+    text-shadow: 0 0 0 #ffffff;
 }
 
 .wozcode-modal-footer {

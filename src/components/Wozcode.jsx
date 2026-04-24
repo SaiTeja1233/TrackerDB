@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { databases, ID, Query } from "../appwrite";
 import { useAuth } from "../context/AuthContext";
+import * as XLSX from "xlsx";
 import {
     User,
     Link as LinkIcon,
@@ -421,24 +422,178 @@ const Wozcode = () => {
     };
 
     const handleExport = () => {
-        const data = {
-            posts: wozcodePosts,
-            comments: wozcodeComments,
-            totalPosts: wozcodePosts.length,
-            totalComments: wozcodeComments.length,
-            exportedAt: new Date().toISOString(),
+        // Prepare data based on current filters
+        let postsToExport = [];
+        let commentsToExport = [];
+
+        // Check if filters are applied
+        const isUserFiltered = appliedUser !== "All Users";
+        const isDateFiltered = appliedDate !== "";
+
+        if (isUserFiltered || isDateFiltered) {
+            // Use filtered data
+            postsToExport = filteredPosts;
+            commentsToExport = filteredComments;
+        } else {
+            // Use all data
+            postsToExport = wozcodePosts;
+            commentsToExport = wozcodeComments;
+        }
+
+        // Prepare posts data for Excel
+        const postsData = postsToExport.map((post) => ({
+            Type: "Post",
+            Username: post.username || "N/A",
+            URL: post.url,
+            "Date Created": formatDateTime(
+                parseDate(post.createdAt || post.$createdAt),
+            ),
+            Platform: post.platform || "wozcode",
+            ID: post.$id,
+        }));
+
+        // Prepare comments data for Excel
+        const commentsData = commentsToExport.map((comment) => ({
+            Type: "Comment",
+            Username: comment.username || "N/A",
+            URL: comment.url,
+            "Date Created": formatDateTime(
+                parseDate(comment.createdAt || comment.$createdAt),
+            ),
+            Platform: comment.platform || "wozcode",
+            ID: comment.$id,
+        }));
+
+        // Combine both datasets
+        const allData = [...postsData, ...commentsData];
+
+        // Create filter info string
+        let filterInfo = "";
+        if (isUserFiltered && isDateFiltered) {
+            filterInfo = `Filtered: User="${appliedUser}", Date="${appliedDate}"`;
+        } else if (isUserFiltered) {
+            filterInfo = `Filtered: User="${appliedUser}"`;
+        } else if (isDateFiltered) {
+            filterInfo = `Filtered: Date="${appliedDate}"`;
+        } else {
+            filterInfo = "No filters (All Data)";
+        }
+
+        // Create summary sheet with filtered counts
+        const summaryData = [
+            { Metric: "Filter Applied", Value: filterInfo },
+            { Metric: "---", Value: "---" },
+            { Metric: "Filtered Posts Count", Value: postsToExport.length },
+            {
+                Metric: "Filtered Comments Count",
+                Value: commentsToExport.length,
+            },
+            {
+                Metric: "Filtered Total Items",
+                Value: postsToExport.length + commentsToExport.length,
+            },
+            { Metric: "---", Value: "---" },
+            { Metric: "Total Posts (All)", Value: wozcodePosts.length },
+            { Metric: "Total Comments (All)", Value: wozcodeComments.length },
+            {
+                Metric: "Total Items (All)",
+                Value: wozcodePosts.length + wozcodeComments.length,
+            },
+            { Metric: "---", Value: "---" },
+            { Metric: "Export Date", Value: new Date().toLocaleString() },
+            { Metric: "Exported By", Value: user?.name || "Unknown" },
+        ];
+
+        // Create workbook
+        const workbook = XLSX.utils.book_new();
+
+        // Add main data sheet (only filtered data)
+        const mainWorksheet = XLSX.utils.json_to_sheet(allData);
+        XLSX.utils.book_append_sheet(workbook, mainWorksheet, "Filtered Data");
+
+        // Add summary sheet
+        const summaryWorksheet = XLSX.utils.json_to_sheet(summaryData);
+        XLSX.utils.book_append_sheet(workbook, summaryWorksheet, "Summary");
+
+        // Add separate sheets for filtered posts and comments
+        const postsWorksheet = XLSX.utils.json_to_sheet(postsData);
+        XLSX.utils.book_append_sheet(
+            workbook,
+            postsWorksheet,
+            "Filtered Posts",
+        );
+
+        const commentsWorksheet = XLSX.utils.json_to_sheet(commentsData);
+        XLSX.utils.book_append_sheet(
+            workbook,
+            commentsWorksheet,
+            "Filtered Comments",
+        );
+
+        // Auto-size columns function
+        const autoSizeColumns = (worksheet) => {
+            if (!worksheet["!ref"]) return;
+            const range = XLSX.utils.decode_range(worksheet["!ref"]);
+            const columnWidths = {};
+
+            for (let R = range.s.r; R <= range.e.r; ++R) {
+                for (let C = range.s.c; C <= range.e.c; ++C) {
+                    const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+                    const cell = worksheet[cellAddress];
+                    if (cell && cell.v) {
+                        const cellValue = cell.v.toString();
+                        const cellLength = Math.max(cellValue.length, 10);
+                        columnWidths[C] = Math.max(
+                            columnWidths[C] || 0,
+                            cellLength,
+                        );
+                    }
+                }
+            }
+
+            worksheet["!cols"] = Object.values(columnWidths).map((width) => ({
+                wch: Math.min(width + 2, 50),
+            }));
         };
-        const blob = new Blob([JSON.stringify(data, null, 2)], {
-            type: "application/json",
-        });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `wozcode-data-${new Date().toISOString().split("T")[0]}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+
+        // Auto-size all worksheets
+        autoSizeColumns(mainWorksheet);
+        autoSizeColumns(postsWorksheet);
+        autoSizeColumns(commentsWorksheet);
+        autoSizeColumns(summaryWorksheet);
+
+        // Generate filename with filter info
+        let fileName = `wozcode-data`;
+        if (isUserFiltered) {
+            fileName += `-${appliedUser.replace(/\s/g, "")}`;
+        }
+        if (isDateFiltered) {
+            fileName += `-${appliedDate}`;
+        }
+        fileName += `-${new Date().toISOString().split("T")[0]}.xlsx`;
+
+        // Clean filename (remove special characters)
+        fileName = fileName.replace(/[^a-zA-Z0-9-.]/g, "");
+
+        // Generate Excel file
+        XLSX.writeFile(workbook, fileName);
+
+        // Show success message with filter info
+        let message = `✅ Excel file "${fileName}" has been downloaded successfully!\n\n`;
+        message += `📊 Export Summary:\n`;
+        message += `━ ━ ━ ━ ━ ━ ━ ━ ━ ━ ━ ━ ━\n`;
+        message += `📝 Filtered Posts: ${postsToExport.length}\n`;
+        message += `💬 Filtered Comments: ${commentsToExport.length}\n`;
+        message += `📦 Total Filtered Items: ${postsToExport.length + commentsToExport.length}\n`;
+        if (isUserFiltered) message += `👤 User Filter: ${appliedUser}\n`;
+        if (isDateFiltered) message += `📅 Date Filter: ${appliedDate}\n`;
+        message += `━ ━ ━ ━ ━ ━ ━ ━ ━ ━ ━ ━ ━\n`;
+        message += `📈 Overall Statistics:\n`;
+        message += `📝 Total Posts (All): ${wozcodePosts.length}\n`;
+        message += `💬 Total Comments (All): ${wozcodeComments.length}\n`;
+        message += `📦 Total Items (All): ${wozcodePosts.length + wozcodeComments.length}`;
+
+        alert(message);
     };
 
     const hasActiveFilters = appliedUser !== "All Users" || appliedDate;
